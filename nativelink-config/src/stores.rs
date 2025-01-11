@@ -85,7 +85,7 @@ pub enum StoreSpec {
     /// **Example JSON Config:**
     /// ```json
     /// "experimental_gcs_store": {
-    ///   "project_id": "sample-project",
+    ///   "service_email": "email@domain.com",
     ///   "bucket": "test-bucket",
     ///   "key_prefix": "test-prefix-index/",
     ///   "retry": {
@@ -813,7 +813,7 @@ pub struct S3Spec {
 pub struct GcsSpec {
     /// Project ID for the GCS service
     #[serde(default, deserialize_with = "convert_string_with_shellexpand")]
-    pub project_id: String,
+    pub service_email: String,
 
     /// Bucket name to use as the backend
     #[serde(default, deserialize_with = "convert_string_with_shellexpand")]

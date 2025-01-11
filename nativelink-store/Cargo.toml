@@ -40,6 +40,7 @@ fred = { version = "10.0.1", default-features = false, features = [
   "subscriber-client",
 ] }
 googleapis-tonic-google-storage-v2 = "0.17.0"
+jsonwebtoken = "9.3.0"
 patricia_tree = { version = "0.8.0", default-features = false }
 futures = { version = "0.3.31", default-features = false }
 hex = { version = "0.4.3", default-features = false }

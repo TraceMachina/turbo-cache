@@ -1,38 +1,64 @@
+// Copyright 2024 The NativeLink Authors. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use std::pin::Pin;
 use std::sync::Arc;
-use std::task::{Context, Poll};
 
-use bytes::{BufMut, Bytes, BytesMut};
+use bytes::{BufMut, BytesMut};
 use futures::Stream;
-use http::StatusCode;
+use gcs_mock::{MockGcsClient, TestRequest, TestResponse};
+use googleapis_tonic_google_storage_v2::google::storage::v2::{
+    bidi_write_object_request, write_object_request, BidiWriteObjectRequest, ChecksummedData,
+    Object, ReadObjectRequest, StartResumableWriteRequest, WriteObjectRequest, WriteObjectSpec,
+};
 use nativelink_config::stores::GcsSpec;
 use nativelink_error::Error;
-use nativelink_store::gcs_store::{GcsClient, GcsStore, StorageOperations};
+use nativelink_macro::nativelink_test;
+use nativelink_store::gcs_client::client::GcsClient;
+use nativelink_store::gcs_client::grpc_client::GcsGrpcClient;
+use nativelink_store::gcs_store::GcsStore;
+use nativelink_util::buf_channel::make_buf_channel_pair;
+use nativelink_util::common::DigestInfo;
 use nativelink_util::instant_wrapper::MockInstantWrapped;
+use nativelink_util::origin_context::OriginContext;
+use nativelink_util::spawn;
 use nativelink_util::store_trait::{StoreKey, StoreLike, UploadSizeInfo};
-use tonic::Status;
+use sha2::Digest;
+use tonic::{Request, Status};
 
-pub mod test_utils {
+mod gcs_mock {
+    use std::pin::Pin;
     use std::str::FromStr;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex};
+    use std::task::{Context, Poll};
 
     use async_trait::async_trait;
+    use bytes::{Bytes, BytesMut};
     use googleapis_tonic_google_storage_v2::google::storage::v2::{
         bidi_write_object_request, write_object_request, BidiWriteObjectResponse, ChecksummedData,
         Object, ReadObjectRequest, ReadObjectResponse, StartResumableWriteRequest,
         StartResumableWriteResponse, WriteObjectResponse,
     };
-    use nativelink_store::gcs_store::{
-        BidiWriteObjectStream, StorageOperations, WriteObjectStream,
+    use http::StatusCode;
+    use nativelink_store::gcs_client::grpc_client::{
+        BidiWriteObjectStream, GcsGrpcClient, WriteObjectStream,
     };
     use tonic::metadata::{MetadataMap, MetadataValue};
-    use tonic::{Request, Response, Streaming};
+    use tonic::{Request, Response, Status, Streaming};
 
-    use super::*;
-
-    // ===== Mock Response Types =====
-
+    #[allow(dead_code)]
     #[derive(Debug)]
     pub struct TestResponse {
         pub status: Status,
@@ -85,6 +111,7 @@ pub mod test_utils {
             self
         }
 
+        #[allow(dead_code)]
         #[must_use]
         pub fn with_status(status: Status) -> Self {
             Self {
@@ -96,6 +123,7 @@ pub mod test_utils {
         }
     }
 
+    #[allow(dead_code)]
     #[derive(Debug)]
     pub struct TestRequest {
         pub method: &'static str,
@@ -103,8 +131,53 @@ pub mod test_utils {
         pub response: TestResponse,
     }
 
-    // ===== Mock GCS Client =====
+    // Mock Body Implementation
+    #[derive(Clone)]
+    struct MockBody<T: prost::Message + Clone> {
+        chunks: Vec<T>,
+        current: usize,
+    }
 
+    impl<T: prost::Message + Clone> MockBody<T> {
+        fn new(responses: Vec<T>) -> Self {
+            Self {
+                chunks: responses,
+                current: 0,
+            }
+        }
+
+        fn encode_grpc_frame(message: &T) -> Bytes {
+            let msg_bytes = message.encode_to_vec();
+            let mut buf = BytesMut::with_capacity(msg_bytes.len() + 5);
+            buf.extend_from_slice(&[0]); // Compression flag
+            buf.extend_from_slice(&(msg_bytes.len() as u32).to_be_bytes()); // Length
+            buf.extend_from_slice(&msg_bytes);
+            buf.freeze()
+        }
+    }
+
+    impl<T: prost::Message + Clone> http_body::Body for MockBody<T> {
+        type Data = Bytes;
+        type Error = Box<dyn std::error::Error + Send + Sync>;
+
+        fn poll_frame(
+            self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+        ) -> Poll<Option<Result<http_body::Frame<Self::Data>, Self::Error>>> {
+            let this = unsafe { self.get_unchecked_mut() };
+            if this.current >= this.chunks.len() {
+                return Poll::Ready(None);
+            }
+
+            let response = this.chunks[this.current].clone();
+            this.current += 1;
+            let bytes = Self::encode_grpc_frame(&response);
+            Poll::Ready(Some(Ok(http_body::Frame::data(bytes))))
+        }
+    }
+
+    // Mock Client Implementation
+    #[allow(dead_code)]
     #[derive(Clone)]
     pub struct MockGcsClient {
         expected_requests: Arc<Vec<TestRequest>>,
@@ -125,6 +198,7 @@ pub mod test_utils {
             self.request_log.lock().unwrap().len()
         }
 
+        #[allow(dead_code)]
         pub fn single_head_request(response: TestResponse) -> Self {
             Self::new(vec![TestRequest {
                 method: "READ",
@@ -155,81 +229,8 @@ pub mod test_utils {
         }
     }
 
-    // ===== Mock Streaming Response Implementation =====
-
-    #[derive(Clone)]
-    struct MockBody<T: prost::Message + Clone> {
-        chunks: Vec<T>,
-        current: usize,
-    }
-
-    impl<T: prost::Message + Clone> MockBody<T> {
-        fn new(responses: Vec<T>) -> Self {
-            Self {
-                chunks: responses,
-                current: 0,
-            }
-        }
-
-        fn encode_grpc_frame(message: &T) -> Bytes {
-            let msg_bytes = message.encode_to_vec();
-            let mut buf = BytesMut::with_capacity(msg_bytes.len() + 5);
-            buf.extend_from_slice(&[0]); // Compression flag (0 = uncompressed)
-            buf.extend_from_slice(&(msg_bytes.len() as u32).to_be_bytes()); // Message length
-            buf.extend_from_slice(&msg_bytes);
-            buf.freeze()
-        }
-    }
-
-    impl<T: prost::Message + Clone> http_body::Body for MockBody<T> {
-        type Data = Bytes;
-        type Error = Box<dyn std::error::Error + Send + Sync>;
-
-        fn poll_frame(
-            self: Pin<&mut Self>,
-            _cx: &mut Context<'_>,
-        ) -> Poll<Option<Result<http_body::Frame<Self::Data>, Self::Error>>> {
-            // Safe to get a mutable reference because we never move out of `self`
-            let this = unsafe { self.get_unchecked_mut() };
-
-            if this.current >= this.chunks.len() {
-                return Poll::Ready(None);
-            }
-
-            let response = this.chunks[this.current].clone();
-            this.current += 1;
-            let bytes = Self::encode_grpc_frame(&response);
-            Poll::Ready(Some(Ok(http_body::Frame::data(bytes))))
-        }
-    }
-
-    struct MockDecoder<T>(std::marker::PhantomData<T>);
-
-    impl<T> MockDecoder<T> {
-        fn new() -> Self {
-            Self(std::marker::PhantomData)
-        }
-    }
-
-    impl<T: prost::Message + Default> tonic::codec::Decoder for MockDecoder<T> {
-        type Item = T;
-        type Error = Status;
-
-        fn decode(
-            &mut self,
-            buf: &mut tonic::codec::DecodeBuf<'_>,
-        ) -> Result<Option<Self::Item>, Self::Error> {
-            match T::decode(buf) {
-                Ok(response) => Ok(Some(response)),
-                Err(e) => Err(Status::internal(e.to_string())),
-            }
-        }
-    }
-
-    // ===== StorageOperations Implementation =====
-
     #[async_trait]
-    impl StorageOperations for MockGcsClient {
+    impl GcsGrpcClient for MockGcsClient {
         async fn read_object(
             &mut self,
             request: Request<ReadObjectRequest>,
@@ -367,20 +368,30 @@ pub mod test_utils {
             Ok(Response::new(streaming))
         }
     }
-}
 
-use googleapis_tonic_google_storage_v2::google::storage::v2::{
-    bidi_write_object_request, write_object_request, BidiWriteObjectRequest, ChecksummedData,
-    Object, ReadObjectRequest, StartResumableWriteRequest, WriteObjectRequest, WriteObjectSpec,
-};
-use nativelink_macro::nativelink_test;
-use nativelink_util::buf_channel::make_buf_channel_pair;
-use nativelink_util::common::DigestInfo;
-use nativelink_util::origin_context::OriginContext;
-use nativelink_util::spawn;
-use sha2::Digest;
-use test_utils::{MockGcsClient, TestRequest, TestResponse};
-use tonic::Request;
+    struct MockDecoder<T>(std::marker::PhantomData<T>);
+
+    impl<T> MockDecoder<T> {
+        fn new() -> Self {
+            Self(std::marker::PhantomData)
+        }
+    }
+
+    impl<T: prost::Message + Default> tonic::codec::Decoder for MockDecoder<T> {
+        type Item = T;
+        type Error = Status;
+
+        fn decode(
+            &mut self,
+            buf: &mut tonic::codec::DecodeBuf<'_>,
+        ) -> Result<Option<Self::Item>, Self::Error> {
+            match T::decode(buf) {
+                Ok(response) => Ok(Some(response)),
+                Err(e) => Err(Status::internal(e.to_string())),
+            }
+        }
+    }
+}
 
 // Tests
 #[nativelink_test]
