@@ -78,6 +78,27 @@ pub enum StoreSpec {
     ///
     experimental_s3_store(S3Spec),
 
+    /// GCS store will use Google's GCS service as a backend to store
+    /// the files. This configuration can be used to share files
+    /// across multiple instances.
+    ///
+    /// **Example JSON Config:**
+    /// ```json
+    /// "experimental_gcs_store": {
+    ///   "service_email": "email@domain.com",
+    ///   "bucket": "test-bucket",
+    ///   "key_prefix": "test-prefix-index/",
+    ///   "retry": {
+    ///     "max_retries": 6,
+    ///     "delay": 0.3,
+    ///     "jitter": 0.5
+    ///   },
+    ///   "max_concurrent_uploads": 10
+    /// }
+    /// ```
+    ///
+    experimental_gcs_store(GcsSpec),
+
     /// Verify store is used to apply verifications to an underlying
     /// store implementation. It is strongly encouraged to validate
     /// as much data as you can before accepting data from a client,
@@ -781,6 +802,78 @@ pub struct S3Spec {
     /// schemes. Http/2 should be disabled if environments have poor support
     /// or performance related to http/2. Safe to keep default unless
     /// underlying network environment or S3 API servers specify otherwise.
+    ///
+    /// Default: false
+    #[serde(default)]
+    pub disable_http2: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct GcsSpec {
+    /// Project ID for the GCS service
+    #[serde(default, deserialize_with = "convert_string_with_shellexpand")]
+    pub service_email: String,
+
+    /// Bucket name to use as the backend
+    #[serde(default, deserialize_with = "convert_string_with_shellexpand")]
+    pub bucket: String,
+
+    /// If you wish to prefix the location in GCS. If None, no prefix will be used.
+    #[serde(default)]
+    pub key_prefix: Option<String>,
+
+    /// Retry configuration to use when a network request fails.
+    #[serde(default)]
+    pub retry: Retry,
+
+    /// If the number of seconds since the `last_modified` time of the object
+    /// is greater than this value, the object will not be considered
+    /// "existing". This allows for external tools to delete objects that
+    /// have not been uploaded in a long time. If a client receives a `NotFound`
+    /// the client should re-upload the object.
+    ///
+    /// There should be sufficient buffer time between how long the expiration
+    /// configuration of the external tool is and this value. Keeping items
+    /// around for a few days is generally a good idea.
+    ///
+    /// Default: 0. Zero means never consider an object expired.
+    #[serde(default, deserialize_with = "convert_duration_with_shellexpand")]
+    pub consider_expired_after_s: u32,
+
+    /// The maximum buffer size to retain in case of a retryable error
+    /// during upload. Setting this to zero will disable upload buffering;
+    /// this means that in the event of a failure during upload, the entire
+    /// upload will be aborted and the client will likely receive an error.
+    ///
+    /// Default: 5MB.
+    pub max_retry_buffer_per_request: Option<usize>,
+
+    /// Size of chunks for resumeable uploads (in bytes).
+    /// Must be a multiple of 256 KB.
+    ///
+    /// Default: 8MB.
+    pub resumable_chunk_size: Option<usize>,
+
+    /// Maximum number of concurrent uploads for resumable operations
+    ///
+    /// Default: 10.
+    pub max_concurrent_uploads: Option<usize>,
+
+    /// Optional endpoint override for testing
+    /// Example: "localhost:8080" for local development
+    ///
+    /// Default: None (uses production GCS endpoint)
+    #[serde(default)]
+    pub endpoint: Option<String>,
+
+    /// Allow unencrypted HTTP connections. Only use this for local testing.
+    ///
+    /// Default: false
+    #[serde(default)]
+    pub insecure_allow_http: bool,
+
+    /// Disable http/2 connections and only use http/1.1.
     ///
     /// Default: false
     #[serde(default)]
