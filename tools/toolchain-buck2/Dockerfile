@@ -14,7 +14,7 @@
 
 # ubuntu:jammy-20240212
 # https://hub.docker.com/layers/library/ubuntu/jammy-20240212/images/sha256-9089166d0211acd54441bb6a532f69e0038287edf625d62fda94784df7f07474
-FROM ubuntu:22.04@sha256:f9d633ff6640178c2d0525017174a688e2c1aef28f0a0130b26bd5554491f0da AS dependencies
+FROM ubuntu:22.04@sha256:0e5e4a57c2499249aafc3b40fcd541e9a456aab7296681a3994d631587203f97 AS dependencies
 # hadolint ignore=DL3009,DL3015
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive \
     apt-get install -y \
