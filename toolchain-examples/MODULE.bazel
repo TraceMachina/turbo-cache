@@ -76,7 +76,7 @@ bazel_dep(name = "curl", version = "8.8.0.bcr.1")
 bazel_dep(name = "zstd", version = "1.5.6")
 
 # Abseil for C++
-bazel_dep(name = "abseil-cpp", version = "20240722.0.bcr.1")
+bazel_dep(name = "abseil-cpp", version = "20240722.1")
 
 # Abseil for python
 bazel_dep(name = "abseil-py", version = "2.1.0")
