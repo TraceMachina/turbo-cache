@@ -6,6 +6,7 @@ require (
 	github.com/docker/docker v27.5.0+incompatible
 	github.com/go-git/go-git/v5 v5.13.1
 	github.com/pulumi/pulumi-docker/sdk/v3 v3.6.1
+	github.com/pulumi/pulumi-docker/sdk/v4 v4.6.1
 	github.com/pulumi/pulumi-kubernetes/sdk/v4 v4.21.0
 	github.com/pulumi/pulumi/sdk/v3 v3.146.0
 	github.com/spf13/cobra v1.8.1
