@@ -1,0 +1,13 @@
+stores:
+  gcs_store:
+    type: "gcs_store"
+    bucket: "my-bucket"
+    key_prefix: "my-prefix/"
+    consider_expired_after_s: 3600
+    retry:
+      max_retries: 3
+      initial_delay_millis: 100
+      max_delay_millis: 1000
+      jitter: 0.1
+    multipart_max_concurrent_uploads: 10
+    max_retry_buffer_per_request: 5242880  # 5MB 
