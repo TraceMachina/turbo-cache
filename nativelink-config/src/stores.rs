@@ -54,6 +54,9 @@ pub enum StoreSpec {
     ///
     memory(MemorySpec),
 
+    /// TODO(SchahinRohani): Add documentation.
+    experimental_gcs_store(GCSSpec),
+
     /// S3 store will use Amazon's S3 service as a backend to store
     /// the files. This configuration can be used to share files
     /// across multiple instances.
@@ -722,6 +725,22 @@ pub struct EvictionPolicy {
     /// Default: 0. Zero means never evict based on count.
     #[serde(default, deserialize_with = "convert_numeric_with_shellexpand")]
     pub max_count: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct GCSSpec {
+    /// Google Cloud Storage region.
+    #[serde(default, deserialize_with = "convert_string_with_shellexpand")]
+    pub region: String,
+
+    /// If you wish to prefix the location on Google cloud storage. If None, no prefix will be used.
+    #[serde(default)]
+    pub key_prefix: Option<String>,
+
+    /// Bucket name to use as the backend.
+    #[serde(default, deserialize_with = "convert_string_with_shellexpand")]
+    pub bucket: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
