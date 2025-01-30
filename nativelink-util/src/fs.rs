@@ -75,7 +75,7 @@ impl ResumeableFileSlot {
         }
     }
 
-    pub fn new_with_take(file: Take<FileSlot>, path: PathBuf, is_write: bool) -> Self {
+    pub const fn new_with_take(file: Take<FileSlot>, path: PathBuf, is_write: bool) -> Self {
         Self {
             maybe_file_slot: MaybeFileSlot::Open(file),
             path,

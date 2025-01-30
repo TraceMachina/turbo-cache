@@ -58,7 +58,7 @@ impl TokioWatchActionStateResult {
     // Note: This function is only used in tests, but for some reason
     // rust doesn't detect it as used.
     #[allow(dead_code)]
-    pub fn new(
+    pub const fn new(
         client_operation_id: OperationId,
         action_info: Arc<ActionInfo>,
         rx: watch::Receiver<Arc<ActionState>>,

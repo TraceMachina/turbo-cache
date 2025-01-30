@@ -111,7 +111,7 @@ struct DropCounter<'a> {
 
 impl<'a> DropCounter<'a> {
     #[inline]
-    pub fn new(counter: &'a AtomicU64) -> Self {
+    pub const fn new(counter: &'a AtomicU64) -> Self {
         Self { counter }
     }
 }

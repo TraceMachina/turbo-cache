@@ -27,7 +27,7 @@ struct ExponentialBackoff {
 }
 
 impl ExponentialBackoff {
-    fn new(base: Duration) -> Self {
+    const fn new(base: Duration) -> Self {
         ExponentialBackoff { current: base }
     }
 }
@@ -59,7 +59,7 @@ pub struct Retrier {
     config: Retry,
 }
 
-fn to_error_code(code: Code) -> ErrorCode {
+const fn to_error_code(code: Code) -> ErrorCode {
     match code {
         Code::Cancelled => ErrorCode::Cancelled,
         Code::InvalidArgument => ErrorCode::InvalidArgument,

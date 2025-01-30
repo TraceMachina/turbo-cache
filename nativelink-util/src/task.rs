@@ -109,7 +109,7 @@ pub struct JoinHandleDropGuard<T> {
 }
 
 impl<T> JoinHandleDropGuard<T> {
-    pub fn new(inner: JoinHandle<T>) -> Self {
+    pub const fn new(inner: JoinHandle<T>) -> Self {
         Self { inner }
     }
 }

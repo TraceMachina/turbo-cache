@@ -133,7 +133,7 @@ struct TestContext {
 }
 
 #[allow(clippy::unnecessary_wraps)]
-fn static_now_fn() -> Result<Duration, Error> {
+const fn static_now_fn() -> Result<Duration, Error> {
     Ok(Duration::from_secs(BASE_NOW_S))
 }
 

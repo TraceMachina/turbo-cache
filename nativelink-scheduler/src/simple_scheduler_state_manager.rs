@@ -77,7 +77,7 @@ where
     I: InstantWrapper,
     NowFn: Fn() -> I + Clone + Send + Unpin + Sync + 'static,
 {
-    fn new(
+    const fn new(
         sub: U,
         simple_scheduler_state_manager: Weak<SimpleSchedulerStateManager<T, I, NowFn>>,
         no_event_action_timeout: Duration,
@@ -134,7 +134,7 @@ where
     I: InstantWrapper,
     NowFn: Fn() -> I + Clone + Send + Unpin + Sync + 'static,
 {
-    fn new(
+    const fn new(
         awaited_action_sub: U,
         simple_scheduler_state_manager: Weak<SimpleSchedulerStateManager<T, I, NowFn>>,
         no_event_action_timeout: Duration,
@@ -630,7 +630,7 @@ where
     where
         F: Fn(T::Subscriber) -> Box<dyn ActionStateResult> + Send + Sync + 'a,
     {
-        fn sorted_awaited_action_state_for_flags(
+        const fn sorted_awaited_action_state_for_flags(
             stage: OperationStageFlags,
         ) -> Option<SortedAwaitedActionState> {
             match stage {

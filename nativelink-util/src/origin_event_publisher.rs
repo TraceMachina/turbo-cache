@@ -32,7 +32,7 @@ pub struct OriginEventPublisher {
 }
 
 impl OriginEventPublisher {
-    pub fn new(
+    pub const fn new(
         store: Store,
         rx: mpsc::Receiver<OriginEvent>,
         shutdown_tx: broadcast::Sender<ShutdownGuard>,

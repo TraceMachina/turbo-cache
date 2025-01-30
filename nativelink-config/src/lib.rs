@@ -72,7 +72,7 @@ struct NamedConfigsVisitor<T> {
 }
 
 impl<T> NamedConfigsVisitor<T> {
-    fn new() -> Self {
+    const fn new() -> Self {
         NamedConfigsVisitor {
             phantom: PhantomData,
         }

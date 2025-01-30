@@ -337,7 +337,7 @@ impl<T> ContextAwareFuture<T> {
 
     #[must_use = "futures do nothing unless you `.await` or poll them"]
     #[inline]
-    pub(crate) fn new(context: Option<Arc<OriginContext>>, inner: Instrumented<T>) -> Self {
+    pub(crate) const fn new(context: Option<Arc<OriginContext>>, inner: Instrumented<T>) -> Self {
         Self {
             inner: ManuallyDrop::new(inner),
             context,
