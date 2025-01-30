@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM ubuntu:22.04@sha256:f9d633ff6640178c2d0525017174a688e2c1aef28f0a0130b26bd5554491f0da AS dependencies
+FROM ubuntu:24.04@sha256:80dd3c3b9c6cecb9f1667e9290b3bc61b78c2678c02cbdae5f0fea92cc6734ab AS dependencies
 # hadolint ignore=DL3009
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive \
     apt-get install --no-install-recommends -y \

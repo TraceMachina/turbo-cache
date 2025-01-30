@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   nativelink-dot-com-cloud-rbe-main-legacy-dockerfile-test:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     environment: production
     name: NativeLink.com Cloud / RBE on Main (Legacy Dockerfile Test)
     if: github.ref == 'refs/heads/main'
@@ -110,7 +110,7 @@ jobs:
 
   docker-compose-compiles-nativelink:
     # The type of runner that the job will run on.
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         # Which OS versions we will test on.
@@ -174,7 +174,7 @@ jobs:
         ' 2>&1 | ( ! grep '         PASSED in ' ) # If we get PASSED without (cache) it means there's a cache issue.
 
   integration-tests:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         # Which OS versions we will test on.
