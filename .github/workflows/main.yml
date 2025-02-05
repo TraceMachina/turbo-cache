@@ -27,7 +27,7 @@ jobs:
         actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
 
     - name: Set up AWS CLI
-      uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502
+      uses: aws-actions/configure-aws-credentials@3478c15aa1cf2543c22efcbbd3e483d49c3a31d7
       with:
         aws-access-key-id: ${{ secrets.RBE_ECR_AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.RBE_ECR_AWS_SECRET_ACCESS_KEY }}
