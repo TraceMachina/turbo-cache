@@ -41,7 +41,7 @@ The value of `stores` includes top-level keys, which are user supplied names sto
 ### Store Type
 
 Once the store has been named and its object exists,
-the next key is the type of store. The options are `filesystem`, `memory`, `compression`, `dedup`, `fast_slow`, `verify`, and `experimental_s3_store`.
+the next key is the type of store. The options are `filesystem`, `memory`, `compression`, `dedup`, `fast_slow`, `verify`, `experimental_s3_store` and `experimental_gcs_store`.
 
 ```json5
 {

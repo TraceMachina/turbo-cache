@@ -1,0 +1,172 @@
+{
+  "stores": {
+    "CAS_MAIN_STORE": {
+      "verify": {
+        "backend": {
+          "dedup": {
+            "index_store": {
+              "fast_slow": {
+                "fast": {
+                  "filesystem": {
+                    "content_path": "/tmp/nativelink/data/content_path-index",
+                    "temp_path": "/tmp/nativelink/data/tmp_path-index",
+                    "eviction_policy": {
+                      // 500mb.
+                      "max_bytes": 500000000
+                    }
+                  }
+                },
+                "slow": {
+                  "experimental_gcs_store": {
+                    "service_email": "nativelink-test-aman@inbound-entity-447014-k2.iam.gserviceaccount.com",
+                    // Name of the bucket to upload to.
+                    "bucket": "test-bucket-aman-nativelink",
+                    "key_prefix": "test-prefix-index/",
+                    "retry": {
+                      "max_retries": 6,
+                      "delay": 0.3,
+                      "jitter": 0.5
+                    },
+                    "max_concurrent_uploads": 10
+                  }
+                }
+              }
+            },
+            "content_store": {
+              "compression": {
+                "compression_algorithm": {
+                  "lz4": {}
+                },
+                "backend": {
+                  "fast_slow": {
+                    "fast": {
+                      "filesystem": {
+                        "content_path": "/tmp/nativelink/data/content_path-content",
+                        "temp_path": "/tmp/nativelink/data/tmp_path-content",
+                        "eviction_policy": {
+                          // 2gb.
+                          "max_bytes": 2000000000
+                        }
+                      }
+                    },
+                    "slow": {
+                      "experimental_gcs_store": {
+                        "service_email": "nativelink-test-aman@inbound-entity-447014-k2.iam.gserviceaccount.com",
+                        // Name of the bucket to upload to.
+                        "bucket": "test-bucket-aman-nativelink",
+                        "key_prefix": "test-prefix-dedup-cas/",
+                        "retry": {
+                          "max_retries": 6,
+                          "delay": 0.3,
+                          "jitter": 0.5
+                        },
+                        "max_concurrent_uploads": 10
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "verify_size": true
+      }
+    },
+    "AC_MAIN_STORE": {
+      "fast_slow": {
+        "fast": {
+          "memory": {
+            "eviction_policy": {
+              // 100mb.
+              "max_bytes": 100000000
+            }
+          },
+          "filesystem": {
+            "content_path": "/tmp/nativelink/data/content_path-ac",
+            "temp_path": "/tmp/nativelink/data/tmp_path-ac",
+            "eviction_policy": {
+              // 500mb.
+              "max_bytes": 500000000
+            }
+          }
+        },
+        "slow": {
+          "experimental_gcs_store": {
+            "service_email": "nativelink-test-aman@inbound-entity-447014-k2.iam.gserviceaccount.com",
+            // Name of the bucket to upload to.
+            "bucket": "test-bucket-aman-nativelink",
+            "key_prefix": "test-prefix-ac/",
+            "retry": {
+              "max_retries": 6,
+              "delay": 0.3,
+              "jitter": 0.5
+            },
+            "max_concurrent_uploads": 10
+          }
+        }
+      }
+    },
+  },
+  "schedulers": {
+    "MAIN_SCHEDULER": {
+      "simple": {
+        "supported_platform_properties": {
+          "cpu_count": "minimum",
+          "memory_kb": "minimum",
+          "network_kbps": "minimum",
+          "disk_read_iops": "minimum",
+          "disk_read_bps": "minimum",
+          "disk_write_iops": "minimum",
+          "disk_write_bps": "minimum",
+          "shm_size": "minimum",
+          "gpu_count": "minimum",
+          "gpu_model": "exact",
+          "cpu_vendor": "exact",
+          "cpu_arch": "exact",
+          "cpu_model": "exact",
+          "kernel_version": "exact",
+          "docker_image": "priority",
+          "lre-rs": "priority"
+        }
+      }
+    }
+  },
+  "servers": [{
+    "listener": {
+      "http": {
+        "socket_address": "0.0.0.0:50051"
+      }
+    },
+    "services": {
+      "cas": {
+        "main": {
+          "cas_store": "CAS_MAIN_STORE"
+        }
+      },
+      "ac": {
+        "main": {
+          "ac_store": "AC_MAIN_STORE"
+        }
+      },
+      "execution": {
+        "main": {
+          "cas_store": "CAS_MAIN_STORE",
+          "scheduler": "MAIN_SCHEDULER"
+        }
+      },
+      "capabilities": {
+        "main": {
+          "remote_execution": {
+            "scheduler": "MAIN_SCHEDULER"
+          }
+        }
+      },
+      "bytestream": {
+        "cas_stores": {
+          "main": "CAS_MAIN_STORE"
+        }
+      },
+      "health": {}
+    }
+  }]
+}
