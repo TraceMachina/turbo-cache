@@ -327,7 +327,7 @@ impl DropCloserReadHalf {
     }
 
     /// The number of bytes received over this stream so far.
-    pub fn get_bytes_received(&self) -> u64 {
+    pub const fn get_bytes_received(&self) -> u64 {
         self.bytes_received
     }
 

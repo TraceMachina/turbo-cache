@@ -1445,7 +1445,7 @@ impl UploadActionResults {
         })
     }
 
-    fn should_cache_result(
+    const fn should_cache_result(
         strategy: UploadCacheResultsStrategy,
         action_result: &ActionResult,
         treat_infra_error_as_failure: bool,

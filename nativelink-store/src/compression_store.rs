@@ -146,7 +146,7 @@ pub struct Footer {
 /// `lz4_flex::block::get_maximum_output_size()` way over estimates, so we use the
 /// one provided here: <https://github.com/torvalds/linux/blob/master/include/linux/lz4.h#L61>
 /// Local testing shows this gives quite accurate worst case given random input.
-fn lz4_compress_bound(input_size: u64) -> u64 {
+const fn lz4_compress_bound(input_size: u64) -> u64 {
     input_size + (input_size / 255) + 16
 }
 

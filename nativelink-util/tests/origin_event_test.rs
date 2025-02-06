@@ -77,7 +77,7 @@ macro_rules! test_event {
 
 #[nativelink_test]
 fn get_id_for_event_test() {
-    fn get_expected_value(event: &Event) -> [u8; 2] {
+    const fn get_expected_value(event: &Event) -> [u8; 2] {
         match &event.event {
             None => [0x00, 0x00],
             Some(event::Event::Request(req)) => {

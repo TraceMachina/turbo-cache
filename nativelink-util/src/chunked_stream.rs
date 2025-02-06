@@ -52,7 +52,7 @@ where
     F: FnMut(Bound<K>, Bound<K>, VecDeque<T>) -> Fut,
     Fut: Future<Output = Result<Option<((Bound<K>, Bound<K>), VecDeque<T>)>, E>>,
 {
-    pub fn new(start_key: Bound<K>, end_key: Bound<K>, chunk_fn: F) -> Self {
+    pub const fn new(start_key: Bound<K>, end_key: Bound<K>, chunk_fn: F) -> Self {
         Self {
             chunk_fn,
             buffer: VecDeque::new(),

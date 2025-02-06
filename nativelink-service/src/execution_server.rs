@@ -53,7 +53,7 @@ struct NativelinkOperationId {
 }
 
 impl NativelinkOperationId {
-    fn new(instance_name: InstanceInfoName, client_operation_id: OperationId) -> Self {
+    const fn new(instance_name: InstanceInfoName, client_operation_id: OperationId) -> Self {
         Self {
             instance_name,
             client_operation_id,

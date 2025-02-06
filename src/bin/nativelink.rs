@@ -177,7 +177,7 @@ async fn inner_main(
     server_start_timestamp: u64,
     shutdown_tx: broadcast::Sender<ShutdownGuard>,
 ) -> Result<(), Error> {
-    fn into_encoding(from: HttpCompressionAlgorithm) -> Option<CompressionEncoding> {
+    const fn into_encoding(from: HttpCompressionAlgorithm) -> Option<CompressionEncoding> {
         match from {
             HttpCompressionAlgorithm::gzip => Some(CompressionEncoding::Gzip),
             HttpCompressionAlgorithm::none => None,

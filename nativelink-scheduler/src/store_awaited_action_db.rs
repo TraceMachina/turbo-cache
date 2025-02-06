@@ -70,7 +70,7 @@ where
     I: InstantWrapper,
     NowFn: Fn() -> I,
 {
-    fn new(
+    const fn new(
         maybe_client_operation_id: Option<ClientOperationId>,
         subscription_key: OperationIdToAwaitedAction<'static>,
         weak_store: Weak<S>,
@@ -306,7 +306,7 @@ impl SchedulerStoreDecodeTo for SearchStateToAwaitedAction {
     }
 }
 
-fn get_state_prefix(state: SortedAwaitedActionState) -> &'static str {
+const fn get_state_prefix(state: SortedAwaitedActionState) -> &'static str {
     match state {
         SortedAwaitedActionState::CacheCheck => "cache_check",
         SortedAwaitedActionState::Queued => "queued",

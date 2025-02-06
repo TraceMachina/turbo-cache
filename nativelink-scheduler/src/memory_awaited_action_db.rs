@@ -57,14 +57,17 @@ struct ClientAwaitedAction {
 }
 
 impl ClientAwaitedAction {
-    pub fn new(operation_id: OperationId, event_tx: mpsc::UnboundedSender<ActionEvent>) -> Self {
+    pub const fn new(
+        operation_id: OperationId,
+        event_tx: mpsc::UnboundedSender<ActionEvent>,
+    ) -> Self {
         Self {
             operation_id,
             event_tx,
         }
     }
 
-    pub fn operation_id(&self) -> &OperationId {
+    pub const fn operation_id(&self) -> &OperationId {
         &self.operation_id
     }
 }

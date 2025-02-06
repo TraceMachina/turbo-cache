@@ -79,7 +79,7 @@ where
         futures::future::poll_fn(|cx| Pin::new(&mut *self).poll_next(cx)).await
     }
 
-    pub fn is_first_msg(&self) -> bool {
+    pub const fn is_first_msg(&self) -> bool {
         self.first_msg.is_some()
     }
 }
@@ -152,7 +152,10 @@ pub struct FirstStream {
 }
 
 impl FirstStream {
-    pub fn new(first_response: Option<ReadResponse>, stream: Streaming<ReadResponse>) -> Self {
+    pub const fn new(
+        first_response: Option<ReadResponse>,
+        stream: Streaming<ReadResponse>,
+    ) -> Self {
         Self {
             first_response: Some(first_response),
             stream,
@@ -200,7 +203,7 @@ where
     T: Stream<Item = Result<WriteRequest, E>> + Unpin + Send + 'static,
     E: Into<Error> + 'static,
 {
-    pub fn new(instance_name: String, read_stream: WriteRequestStreamWrapper<T>) -> Self {
+    pub const fn new(instance_name: String, read_stream: WriteRequestStreamWrapper<T>) -> Self {
         Self {
             instance_name,
             read_stream_error: None,
@@ -231,7 +234,7 @@ where
         }
     }
 
-    pub fn can_resume(&self) -> bool {
+    pub const fn can_resume(&self) -> bool {
         self.read_stream_error.is_none()
             && (self.cached_messages[0].is_some() || self.read_stream.is_first_msg())
     }
@@ -261,7 +264,7 @@ where
     T: Stream<Item = Result<WriteRequest, E>> + Unpin + Send + 'static,
     E: Into<Error> + 'static,
 {
-    pub fn new(shared_state: Arc<Mutex<WriteState<T, E>>>) -> Self {
+    pub const fn new(shared_state: Arc<Mutex<WriteState<T, E>>>) -> Self {
         Self { shared_state }
     }
 }

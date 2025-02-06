@@ -40,7 +40,7 @@ pub struct HealthServer {
 }
 
 impl HealthServer {
-    pub fn new(health_registry: HealthRegistry) -> Self {
+    pub const fn new(health_registry: HealthRegistry) -> Self {
         Self { health_registry }
     }
 }

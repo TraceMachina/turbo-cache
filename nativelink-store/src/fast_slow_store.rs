@@ -62,11 +62,11 @@ impl FastSlowStore {
         })
     }
 
-    pub fn fast_store(&self) -> &Store {
+    pub const fn fast_store(&self) -> &Store {
         &self.fast_store
     }
 
-    pub fn slow_store(&self) -> &Store {
+    pub const fn slow_store(&self) -> &Store {
         &self.slow_store
     }
 

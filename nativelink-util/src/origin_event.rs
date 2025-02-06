@@ -56,7 +56,7 @@ static NODE_ID: OnceLock<[u8; 6]> = OnceLock::new();
 /// meaning you may use the first nibble for other
 /// purposes.
 #[inline]
-pub fn get_id_for_event(event: &Event) -> [u8; 2] {
+pub const fn get_id_for_event(event: &Event) -> [u8; 2] {
     match &event.event {
         None => [0x00, 0x00],
         Some(event::Event::Request(req)) => match req.event {
@@ -122,7 +122,7 @@ pub struct OriginEventCollector {
 }
 
 impl OriginEventCollector {
-    pub fn new(
+    pub const fn new(
         sender: mpsc::Sender<OriginEvent>,
         identity: String,
         bazel_metadata: Option<RequestMetadata>,
