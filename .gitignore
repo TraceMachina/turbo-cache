@@ -2,6 +2,7 @@ bazel-*
 target/
 .vscode/
 .zed
+.idea/
 .cache
 .terraform*
 .config
