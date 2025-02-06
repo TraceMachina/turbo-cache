@@ -1,0 +1,231 @@
+{
+  "stores": {
+    "AC_FAST_SLOW_STORE": {
+      "fast_slow": {
+        "fast": {
+          "memory": {
+            "eviction_policy": {
+              // 100mb.
+              "max_bytes": 100000000,
+            }
+          }
+        },
+        "slow": {
+          "filesystem": {
+            "content_path": "/tmp/nativelink/data-worker-test/content_path-ac",
+            "temp_path": "/tmp/nativelink/data-worker-test/tmp_path-ac",
+            "eviction_policy": {
+              // 20gb.
+              "max_bytes": 2000000000,
+            }
+          }
+        }
+      }
+    },
+    "AC_STORE": {
+      "completeness_checking": {
+        "backend": {
+          "ref_store": {
+            "name": "AC_FAST_SLOW_STORE"
+          }
+        },
+        "cas_store": {
+          "ref_store": {
+            "name": "CAS_STORE"
+          }
+        }
+      }
+    },
+    "CAS_FAST_SLOW_STORE": {
+      "fast_slow": {
+        "fast": {
+          "memory": {
+            "eviction_policy": {
+              // 100mb.
+              "max_bytes": 100000000,
+            }
+          }
+        },
+        "slow": {
+          "size_partitioning": {
+            "size": 1500000,
+            "lower_store": {
+              "memory": {
+                "eviction_policy": {
+                  "max_bytes": 100000000,
+                  "max_count": 150000
+                }
+              }
+            },
+            "upper_store": {
+              "filesystem": {
+                "content_path": "/tmp/nativelink/data-worker-test/content_path-cas",
+                "temp_path": "/tmp/nativelink/data-worker-test/tmp_path-cas",
+                "eviction_policy": {
+                  // 20gb.
+                  "max_bytes": 2000000000,
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "CAS_STORE": {
+      "existence_cache": {
+        "backend": {
+          "ref_store": {
+            "name": "CAS_FAST_SLOW_STORE"
+          }
+        },
+        "eviction_policy": {
+          "max_count": 10000000,
+          "max_seconds": 1800
+        }
+      }
+    },
+  },
+  "schedulers": {
+    "MAIN_SCHEDULER": {
+      "simple": {
+        "supported_platform_properties": {
+          "cpu_count": "minimum",
+          "memory_kb": "minimum",
+          "network_kbps": "minimum",
+          "disk_read_iops": "minimum",
+          "disk_read_bps": "minimum",
+          "disk_write_iops": "minimum",
+          "disk_write_bps": "minimum",
+          "shm_size": "minimum",
+          "gpu_count": "minimum",
+          "gpu_model": "exact",
+          "cpu_vendor": "exact",
+          "cpu_arch": "exact",
+          "cpu_model": "exact",
+          "kernel_version": "exact",
+          "OSFamily": "priority",
+          "container-image": "priority",
+          // Example of how to set which docker images are available and set
+          // them in the platform properties.
+          // "docker_image": "priority",
+        }
+      }
+    }
+  },
+  "workers": [{
+    "local": {
+      "worker_api_endpoint": {
+        "uri": "grpc://127.0.0.1:50061",
+      },
+      "cas_fast_slow_store": "CAS_FAST_SLOW_STORE",
+      "upload_action_result": {
+        "ac_store": "AC_STORE",
+      },
+      "work_directory": "/tmp/nativelink/work",
+      "platform_properties": {
+        "cpu_count": {
+          "values": ["16"],
+        },
+        "memory_kb": {
+          "values": ["500000"],
+        },
+        "network_kbps": {
+          "values": ["100000"],
+        },
+        "cpu_arch": {
+          "values": ["x86_64"],
+        },
+        "OSFamily": {
+          "values": [""]
+        },
+        "container-image": {
+          "values": [""]
+        },
+        // Example of how to set which docker images are available and set
+        // them in the platform properties.
+        // "docker_image": {
+        //   "query_cmd": "docker images --format {{.Repository}}:{{.Tag}}",
+        // }
+      }
+    }
+  }],
+  "servers": [
+    {
+      "listener": {
+        "http": {
+          "socket_address": "0.0.0.0:50051",
+          "compression": {
+            "send_compression_algorithm": "gzip",
+            "accepted_compression_algorithms": [
+              "gzip"
+            ]
+          },
+          "advanced_http": {
+            "experimental_http2_keep_alive_timeout": 1200
+          }
+        }
+      },
+      "services": {
+        "cas": {
+          "main": {
+            "cas_store": "CAS_STORE"
+          },
+          "": {
+            "cas_store": "CAS_STORE"
+          }
+        },
+        "ac": {
+          "main": {
+            "ac_store": "AC_STORE"
+          },
+          "": {
+            "ac_store": "AC_STORE"
+          }
+        },
+        "execution": {
+          "main": {
+            "cas_store": "CAS_FAST_SLOW_STORE",
+            "scheduler": "MAIN_SCHEDULER",
+          }
+        },
+        "capabilities": {
+          "main": {
+            "remote_execution": {
+              "scheduler": "MAIN_SCHEDULER",
+            }
+          }
+        },
+        "bytestream": {
+          "cas_stores": {
+            "main": "CAS_STORE",
+            "": "CAS_STORE"
+          }
+        }
+      }
+    },
+    {
+      "name": "private_workers_servers",
+      "listener": {
+        "http": {
+          "socket_address": "0.0.0.0:50061"
+        }
+      },
+      "services": {
+        "experimental_prometheus": {
+          "path": "/metrics"
+        },
+        // Note: This should be served on a different port, because it has
+        // a different permission set than the other services.
+        // In other words, this service is a backend api. The ones above
+        // are a frontend api.
+        "worker_api": {
+          "scheduler": "MAIN_SCHEDULER",
+        },
+        "admin": {},
+        "health": {},
+      }
+    }],
+    "global": {
+      "max_open_files": 512
+    }
+}
