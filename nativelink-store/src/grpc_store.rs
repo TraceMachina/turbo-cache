@@ -45,7 +45,7 @@ use nativelink_util::origin_context::ActiveOriginContext;
 use nativelink_util::proto_stream_utils::{
     FirstStream, WriteRequestStreamWrapper, WriteState, WriteStateWrapper,
 };
-use nativelink_util::resource_info::ResourceInfo;
+use nativelink_util::resource_info::{is_supported_digest_function, ResourceInfo};
 use nativelink_util::retry::{Retrier, RetryResult};
 use nativelink_util::store_trait::{StoreDriver, StoreKey, UploadSizeInfo};
 use nativelink_util::{default_health_status_indicator, tls_utils};
@@ -276,12 +276,28 @@ impl GrpcStore {
         &self,
         grpc_request: impl IntoRequest<ReadRequest>,
     ) -> Result<impl Stream<Item = Result<ReadResponse, Status>>, Error> {
+        const IS_UPLOAD_FALSE: bool = false;
+
+        let request = self.get_read_request(grpc_request.into_request().into_inner())?;
+        let resource_name = &request.resource_name;
+        let resource_info = ResourceInfo::new(resource_name, IS_UPLOAD_FALSE)
+            .err_tip(|| "Failed to parse resource_name in GrpcStore::read")?;
+
+        let digest_function = resource_info.digest_function.as_deref().unwrap_or("sha256");
+
+        if !is_supported_digest_function(digest_function) {
+            return Err(make_input_err!(
+                "Unsupported digest_function: {} in resource_name '{}'",
+                digest_function,
+                resource_name
+            ));
+        }
+
         error_if!(
             matches!(self.store_type, nativelink_config::stores::StoreType::ac),
             "CAS operation on AC store"
         );
 
-        let request = self.get_read_request(grpc_request.into_request().into_inner())?;
         self.perform_request(request, |request| async move {
             self.read_internal(request).await
         })
@@ -514,6 +530,18 @@ impl StoreDriver for GrpcStore {
         keys: &[StoreKey<'_>],
         results: &mut [Option<u64>],
     ) -> Result<(), Error> {
+        let digest_function = ActiveOriginContext::get_value(&ACTIVE_HASHER_FUNC)
+            .err_tip(|| "In GrpcStore::has_with_results")?
+            .map_or_else(default_digest_hasher_func, |v| *v)
+            .to_string();
+
+        if !is_supported_digest_function(&digest_function) {
+            return Err(make_input_err!(
+                "Unsupported digest_function: {}",
+                digest_function
+            ));
+        }
+
         if matches!(self.store_type, nativelink_config::stores::StoreType::ac) {
             keys.iter()
                 .zip(results.iter_mut())

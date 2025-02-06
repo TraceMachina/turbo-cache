@@ -15,7 +15,7 @@
 use std::borrow::Cow;
 
 use nativelink_macro::nativelink_test;
-use nativelink_util::resource_info::ResourceInfo;
+use nativelink_util::resource_info::{is_supported_digest_function, ResourceInfo};
 use pretty_assertions::assert_eq;
 
 #[nativelink_test]
@@ -705,5 +705,33 @@ async fn write_uploads_blobs_invalid() -> Result<(), Box<dyn std::error::Error>>
 async fn write_invalid_size_test() -> Result<(), Box<dyn std::error::Error>> {
     const RESOURCE_NAME: &str = "uploads/uuid/blobs/hash/INVALID";
     assert!(ResourceInfo::new(RESOURCE_NAME, true).is_err());
+    Ok(())
+}
+
+#[nativelink_test]
+async fn test_supported_digest_functions() -> Result<(), Box<dyn std::error::Error>> {
+    assert_eq!(is_supported_digest_function("sha256"), true);
+    assert_eq!(is_supported_digest_function("sha1"), true);
+    assert_eq!(is_supported_digest_function("md5"), true);
+    assert_eq!(is_supported_digest_function("vso"), true);
+    assert_eq!(is_supported_digest_function("sha384"), true);
+    assert_eq!(is_supported_digest_function("sha512"), true);
+    assert_eq!(is_supported_digest_function("murmur3"), true);
+    assert_eq!(is_supported_digest_function("sha256tree"), true);
+    assert_eq!(is_supported_digest_function("blake3"), true);
+
+    Ok(())
+}
+
+#[nativelink_test]
+async fn test_unsupported_digest_functions() -> Result<(), Box<dyn std::error::Error>> {
+    assert_eq!(is_supported_digest_function("sha3"), false);
+    assert_eq!(
+        is_supported_digest_function("invalid_digest_function"),
+        false
+    );
+    assert_eq!(is_supported_digest_function("boo"), false);
+    assert_eq!(is_supported_digest_function("random_hash"), false);
+
     Ok(())
 }
