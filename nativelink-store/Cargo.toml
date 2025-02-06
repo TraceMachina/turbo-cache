@@ -46,7 +46,7 @@ patricia_tree = { version = "0.8.0", default-features = false }
 futures = { version = "0.3.31", default-features = false }
 hex = { version = "0.4.3", default-features = false }
 http-body = "1.0.1"
-hyper = { version = "0.14.32" }
+hyper = { version = "1.0.0" }
 hyper-rustls = { version = "0.24.2", default-features = false, features = [
   "webpki-roots",
 ] }
