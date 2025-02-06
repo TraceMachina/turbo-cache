@@ -281,7 +281,30 @@ async fn inner_main(
 
         // Currently we only support http as our socket type.
         let ListenerConfig::http(http_config) = server_cfg.listener;
-
+        fn check_store_conflict(services: &Services) -> Result<(), Error> {
+            if let Some(cas_config) = &services.cas {
+                if let Some(ac_config) = &services.ac {
+                    // Create a hashmap from the CAS configuration for quick lookup
+                    let cas_store_map: HashMap<&String, &String> = cas_config
+                        .iter()
+                        .map(|(instance_name, cas_store_config)| (instance_name, &cas_store_config.cas_store))
+                        .collect();
+        
+                    for (instance_name, ac_store_config) in ac_config {
+                        if let Some(cas_store) = cas_store_map.get(instance_name) {
+                            if cas_store == &&ac_store_config.ac_store {
+                                return Err(make_err!(
+                                    Code::InvalidArgument,
+                                    "CAS and AC use the same store '{}' in the config",
+                                    cas_store
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+            Ok(())
+        }
         let tonic_services = TonicServer::builder()
             .add_optional_service(
                 services
