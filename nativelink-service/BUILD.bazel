@@ -35,6 +35,7 @@ rust_library(
         "@crates//:hyper-1.5.2",
         "@crates//:parking_lot",
         "@crates//:prost",
+        "@crates//:rand",
         "@crates//:serde_json5",
         "@crates//:tokio",
         "@crates//:tonic",

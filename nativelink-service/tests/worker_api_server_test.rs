@@ -30,7 +30,7 @@ use nativelink_proto::build::bazel::remote::execution::v2::{
 };
 use nativelink_proto::com::github::trace_machina::nativelink::remote_execution::worker_api_server::WorkerApi;
 use nativelink_proto::com::github::trace_machina::nativelink::remote_execution::{
-    execute_result, update_for_worker, ExecuteResult, KeepAliveRequest, SupportedProperties,
+    execute_result, update_for_worker, ConnectWorkerRequest, ExecuteResult, KeepAliveRequest,
 };
 use nativelink_proto::google::rpc::Status as ProtoStatus;
 use nativelink_scheduler::api_worker_scheduler::ApiWorkerScheduler;
@@ -109,7 +109,7 @@ impl WorkerStateManager for MockWorkerStateManager {
         self.tx_call
             .send(WorkerStateManagerCalls::UpdateOperation((
                 operation_id.clone(),
-                *worker_id,
+                worker_id.clone(),
                 update,
             )))
             .expect("Could not send request to mpsc");
@@ -161,12 +161,13 @@ async fn setup_api_server(worker_timeout: u64, now_fn: NowFn) -> Result<TestCont
         },
         &schedulers,
         now_fn,
+        [1u8; 6],
     )
     .err_tip(|| "Error creating WorkerApiServer")?;
 
-    let supported_properties = SupportedProperties::default();
+    let connect_worker_request = ConnectWorkerRequest::default();
     let mut connection_worker_stream = worker_api_server
-        .connect_worker(Request::new(supported_properties))
+        .connect_worker(Request::new(connect_worker_request))
         .await?
         .into_inner();
 
@@ -198,7 +199,7 @@ async fn setup_api_server(worker_timeout: u64, now_fn: NowFn) -> Result<TestCont
         state_manager,
         worker_api_server,
         connection_worker_stream,
-        worker_id: worker_id.try_into()?,
+        worker_id: worker_id.into(),
     })
 }
 
@@ -405,7 +406,7 @@ pub async fn execution_response_success_test() -> Result<(), Box<dyn std::error:
     test_context
         .scheduler
         .worker_notify_run_action(
-            test_context.worker_id,
+            test_context.worker_id.clone(),
             expected_operation_id.clone(),
             ActionInfoWithProps {
                 inner: action_info,

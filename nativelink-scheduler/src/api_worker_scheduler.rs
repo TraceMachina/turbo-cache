@@ -111,7 +111,7 @@ impl ApiWorkerSchedulerImpl {
         for operation_id in worker.running_action_infos.keys() {
             if self
                 .operation_keep_alive_tx
-                .send((operation_id.clone(), *worker_id))
+                .send((operation_id.clone(), worker_id.clone()))
                 .is_err()
             {
                 event!(
@@ -128,8 +128,8 @@ impl ApiWorkerSchedulerImpl {
     /// Adds a worker to the pool.
     /// Note: This function will not do any task matching.
     fn add_worker(&mut self, worker: Worker) -> Result<(), Error> {
-        let worker_id = worker.id;
-        self.workers.put(worker_id, worker);
+        let worker_id = worker.id.clone();
+        self.workers.put(worker_id.clone(), worker);
 
         // Worker is not cloneable, and we do not want to send the initial connection results until
         // we have added it to the map, or we might get some strange race conditions due to the way
@@ -189,7 +189,7 @@ impl ApiWorkerSchedulerImpl {
                 w.can_accept_work() && platform_properties.is_satisfied_by(&w.platform_properties)
             }),
         };
-        workers_iter.map(|(_, w)| &w.id).copied()
+        workers_iter.map(|(_, w)| w.id.clone())
     }
 
     async fn update_action(
@@ -451,7 +451,7 @@ impl WorkerScheduler for ApiWorkerScheduler {
 
     async fn add_worker(&self, worker: Worker) -> Result<(), Error> {
         let mut inner = self.inner.lock().await;
-        let worker_id = worker.id;
+        let worker_id = worker.id.clone();
         let result = inner
             .add_worker(worker)
             .err_tip(|| "Error while adding worker, removing from pool");
@@ -505,7 +505,7 @@ impl WorkerScheduler for ApiWorkerScheduler {
             .rev()
             .map_while(|(worker_id, worker)| {
                 if worker.last_update_timestamp <= now_timestamp - self.worker_timeout_s {
-                    Some(*worker_id)
+                    Some(worker_id.clone())
                 } else {
                     None
                 }

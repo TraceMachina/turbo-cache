@@ -16,7 +16,7 @@ use std::future::Future;
 
 use nativelink_proto::com::github::trace_machina::nativelink::remote_execution::worker_api_client::WorkerApiClient;
 use nativelink_proto::com::github::trace_machina::nativelink::remote_execution::{
-    ExecuteResult, GoingAwayRequest, KeepAliveRequest, SupportedProperties, UpdateForWorker,
+    ConnectWorkerRequest, ExecuteResult, GoingAwayRequest, KeepAliveRequest, UpdateForWorker,
 };
 use tonic::codec::Streaming;
 use tonic::transport::Channel;
@@ -27,7 +27,7 @@ use tonic::{Response, Status};
 pub trait WorkerApiClientTrait: Clone + Sync + Send + Sized + Unpin {
     fn connect_worker(
         &mut self,
-        request: SupportedProperties,
+        request: ConnectWorkerRequest,
     ) -> impl Future<Output = Result<Response<Streaming<UpdateForWorker>>, Status>> + Send;
 
     fn keep_alive(
@@ -60,7 +60,7 @@ impl From<WorkerApiClient<Channel>> for WorkerApiClientWrapper {
 impl WorkerApiClientTrait for WorkerApiClientWrapper {
     async fn connect_worker(
         &mut self,
-        request: SupportedProperties,
+        request: ConnectWorkerRequest,
     ) -> Result<Response<Streaming<UpdateForWorker>>, Status> {
         self.inner.connect_worker(request).await
     }

@@ -87,10 +87,6 @@ impl MetricsComponent for OperationId {
     }
 }
 
-fn uuid_to_string(uuid: &Uuid) -> String {
-    uuid.hyphenated().to_string()
-}
-
 impl From<&str> for OperationId {
     fn from(value: &str) -> Self {
         match Uuid::parse_str(value) {
@@ -140,8 +136,8 @@ impl TryFrom<Bytes> for OperationId {
 }
 
 /// Unique id of worker.
-#[derive(Default, Eq, PartialEq, Hash, Copy, Clone, Serialize, Deserialize)]
-pub struct WorkerId(pub Uuid);
+#[derive(Default, Eq, PartialEq, Hash, Clone, Serialize, Deserialize)]
+pub struct WorkerId(pub String);
 
 impl MetricsComponent for WorkerId {
     fn publish(
@@ -149,15 +145,13 @@ impl MetricsComponent for WorkerId {
         _kind: MetricKind,
         _field_metadata: MetricFieldData,
     ) -> Result<MetricPublishKnownKindData, nativelink_metric::Error> {
-        Ok(MetricPublishKnownKindData::String(uuid_to_string(&self.0)))
+        Ok(MetricPublishKnownKindData::String(self.0.clone()))
     }
 }
 
 impl std::fmt::Display for WorkerId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut buf = Uuid::encode_buffer();
-        let worker_id_str = self.0.hyphenated().encode_lower(&mut buf);
-        f.write_fmt(format_args!("{worker_id_str}"))
+        f.write_fmt(format_args!("{}", self.0))
     }
 }
 
@@ -167,15 +161,15 @@ impl std::fmt::Debug for WorkerId {
     }
 }
 
-impl TryFrom<String> for WorkerId {
-    type Error = Error;
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        match Uuid::parse_str(&s) {
-            Err(e) => Err(make_input_err!(
-                "Failed to convert string to WorkerId : {s} : {e:?}",
-            )),
-            Ok(my_uuid) => Ok(WorkerId(my_uuid)),
-        }
+impl From<WorkerId> for String {
+    fn from(val: WorkerId) -> Self {
+        val.0
+    }
+}
+
+impl From<String> for WorkerId {
+    fn from(s: String) -> Self {
+        WorkerId(s)
     }
 }
 

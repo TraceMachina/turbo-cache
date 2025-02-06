@@ -22,13 +22,14 @@ use futures::future::try_join_all;
 use nativelink_config::cas_server::WorkerProperty;
 use nativelink_error::{make_err, make_input_err, Error, ResultExt};
 use nativelink_proto::build::bazel::remote::execution::v2::platform::Property;
-use nativelink_proto::com::github::trace_machina::nativelink::remote_execution::SupportedProperties;
+use nativelink_proto::com::github::trace_machina::nativelink::remote_execution::ConnectWorkerRequest;
 use tokio::process;
 use tracing::{event, Level};
 
-pub async fn make_supported_properties<S: BuildHasher>(
+pub async fn make_connect_worker_request<S: BuildHasher>(
+    worker_id_prefix: String,
     worker_properties: &HashMap<String, WorkerProperty, S>,
-) -> Result<SupportedProperties, Error> {
+) -> Result<ConnectWorkerRequest, Error> {
     let mut futures = vec![];
     for (property_name, worker_property) in worker_properties {
         futures.push(async move {
@@ -97,7 +98,8 @@ pub async fn make_supported_properties<S: BuildHasher>(
         });
     }
 
-    Ok(SupportedProperties {
+    Ok(ConnectWorkerRequest {
+        worker_id_prefix,
         properties: try_join_all(futures).await?.into_iter().flatten().collect(),
     })
 }

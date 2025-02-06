@@ -26,7 +26,7 @@ use nativelink_proto::com::github::trace_machina::nativelink::remote_execution::
     WorkerApi, WorkerApiServer as Server,
 };
 use nativelink_proto::com::github::trace_machina::nativelink::remote_execution::{
-    execute_result, ExecuteResult, GoingAwayRequest, KeepAliveRequest, SupportedProperties, UpdateForWorker,
+    execute_result, ConnectWorkerRequest, ExecuteResult, GoingAwayRequest, KeepAliveRequest, UpdateForWorker
 };
 use nativelink_scheduler::worker::Worker;
 use nativelink_scheduler::worker_scheduler::WorkerScheduler;
@@ -34,6 +34,7 @@ use nativelink_util::background_spawn;
 use nativelink_util::action_messages::{OperationId, WorkerId};
 use nativelink_util::operation_state_manager::UpdateOperationType;
 use nativelink_util::platform_properties::PlatformProperties;
+use rand::RngCore;
 use tokio::sync::mpsc;
 use tokio::time::interval;
 use tonic::{Request, Response, Status};
@@ -48,6 +49,7 @@ pub type NowFn = Box<dyn Fn() -> Result<Duration, Error> + Send + Sync>;
 pub struct WorkerApiServer {
     scheduler: Arc<dyn WorkerScheduler>,
     now_fn: NowFn,
+    node_id: [u8; 6],
 }
 
 impl WorkerApiServer {
@@ -55,6 +57,12 @@ impl WorkerApiServer {
         config: &WorkerApiConfig,
         schedulers: &HashMap<String, Arc<dyn WorkerScheduler>>,
     ) -> Result<Self, Error> {
+        let node_id = {
+            let mut rng = rand::thread_rng();
+            let mut out = [0; 6];
+            rng.fill_bytes(&mut out);
+            out
+        };
         for scheduler in schedulers.values() {
             // This will protect us from holding a reference to the scheduler forever in the
             // event our ExecutionServer dies. Our scheduler is a weak ref, so the spawn will
@@ -90,6 +98,7 @@ impl WorkerApiServer {
                     .duration_since(UNIX_EPOCH)
                     .map_err(|_| make_err!(Code::Internal, "System time is now behind unix epoch"))
             }),
+            node_id,
         )
     }
 
@@ -99,6 +108,7 @@ impl WorkerApiServer {
         config: &WorkerApiConfig,
         schedulers: &HashMap<String, Arc<dyn WorkerScheduler>>,
         now_fn: NowFn,
+        node_id: [u8; 6],
     ) -> Result<Self, Error> {
         let scheduler = schedulers
             .get(&config.scheduler)
@@ -109,7 +119,11 @@ impl WorkerApiServer {
                 )
             })?
             .clone();
-        Ok(Self { scheduler, now_fn })
+        Ok(Self {
+            scheduler,
+            now_fn,
+            node_id,
+        })
     }
 
     pub fn into_service(self) -> Server<WorkerApiServer> {
@@ -118,14 +132,14 @@ impl WorkerApiServer {
 
     async fn inner_connect_worker(
         &self,
-        supported_properties: SupportedProperties,
+        connect_worker_request: ConnectWorkerRequest,
     ) -> Result<Response<ConnectWorkerStream>, Error> {
         let (tx, rx) = mpsc::unbounded_channel();
 
         // First convert our proto platform properties into one our scheduler understands.
         let platform_properties = {
             let mut platform_properties = PlatformProperties::default();
-            for property in supported_properties.properties {
+            for property in connect_worker_request.properties {
                 let platform_property_value = self
                     .scheduler
                     .get_platform_property_manager()
@@ -140,9 +154,13 @@ impl WorkerApiServer {
 
         // Now register the worker with the scheduler.
         let worker_id = {
-            let worker_id = Uuid::new_v4();
+            let worker_id = WorkerId(format!(
+                "{}{}",
+                connect_worker_request.worker_id_prefix,
+                Uuid::now_v6(&self.node_id).hyphenated()
+            ));
             let worker = Worker::new(
-                WorkerId(worker_id),
+                worker_id.clone(),
                 platform_properties,
                 tx,
                 (self.now_fn)()?.as_secs(),
@@ -176,7 +194,7 @@ impl WorkerApiServer {
         &self,
         keep_alive_request: KeepAliveRequest,
     ) -> Result<Response<()>, Error> {
-        let worker_id: WorkerId = keep_alive_request.worker_id.try_into()?;
+        let worker_id: WorkerId = keep_alive_request.worker_id.into();
         self.scheduler
             .worker_keep_alive_received(&worker_id, (self.now_fn)()?.as_secs())
             .await
@@ -188,7 +206,7 @@ impl WorkerApiServer {
         &self,
         going_away_request: GoingAwayRequest,
     ) -> Result<Response<()>, Error> {
-        let worker_id: WorkerId = going_away_request.worker_id.try_into()?;
+        let worker_id: WorkerId = going_away_request.worker_id.into();
         self.scheduler
             .remove_worker(&worker_id)
             .await
@@ -200,7 +218,7 @@ impl WorkerApiServer {
         &self,
         execute_result: ExecuteResult,
     ) -> Result<Response<()>, Error> {
-        let worker_id: WorkerId = execute_result.worker_id.try_into()?;
+        let worker_id: WorkerId = execute_result.worker_id.into();
         let operation_id = OperationId::from(execute_result.operation_id);
 
         match execute_result
@@ -248,7 +266,7 @@ impl WorkerApi for WorkerApiServer {
     )]
     async fn connect_worker(
         &self,
-        grpc_request: Request<SupportedProperties>,
+        grpc_request: Request<ConnectWorkerRequest>,
     ) -> Result<Response<Self::ConnectWorkerStream>, Status> {
         let resp = self
             .inner_connect_worker(grpc_request.into_inner())

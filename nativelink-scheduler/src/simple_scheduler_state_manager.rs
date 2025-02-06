@@ -354,7 +354,7 @@ where
             }
         }
 
-        if filter.worker_id.is_some() && filter.worker_id != awaited_action.worker_id() {
+        if filter.worker_id.is_some() && filter.worker_id.as_ref() != awaited_action.worker_id() {
             return false;
         }
 
@@ -500,7 +500,7 @@ where
             // worker that was assigned.
             if awaited_action.worker_id().is_some()
                 && maybe_worker_id.is_some()
-                && maybe_worker_id != awaited_action.worker_id().as_ref()
+                && maybe_worker_id != awaited_action.worker_id()
             {
                 // If another worker is already assigned to the action, another
                 // worker probably picked up the action. We should not update the
@@ -575,7 +575,7 @@ where
                 // which worker sent the update.
                 awaited_action.set_worker_id(None, now);
             } else {
-                awaited_action.set_worker_id(maybe_worker_id.copied(), now);
+                awaited_action.set_worker_id(maybe_worker_id.cloned(), now);
             }
             awaited_action.worker_set_state(
                 Arc::new(ActionState {

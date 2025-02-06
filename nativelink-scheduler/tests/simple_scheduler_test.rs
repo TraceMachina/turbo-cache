@@ -55,7 +55,6 @@ use nativelink_util::platform_properties::{PlatformProperties, PlatformPropertyV
 use pretty_assertions::assert_eq;
 use tokio::sync::{mpsc, Notify};
 use utils::scheduler_utils::{make_base_action_info, INSTANCE_NAME};
-use uuid::Uuid;
 
 mod utils {
     pub(crate) mod scheduler_utils;
@@ -108,7 +107,7 @@ async fn verify_initial_connection_message(
     let expected_msg_for_worker = UpdateForWorker {
         update: Some(update_for_worker::Update::ConnectionResult(
             ConnectionResult {
-                worker_id: worker_id.to_string(),
+                worker_id: worker_id.into(),
             },
         )),
     };
@@ -130,7 +129,7 @@ async fn setup_new_worker(
     props: PlatformProperties,
 ) -> Result<mpsc::UnboundedReceiver<UpdateForWorker>, Error> {
     let (tx, mut rx) = mpsc::unbounded_channel();
-    let worker = Worker::new(worker_id, props, tx, NOW_TIME);
+    let worker = Worker::new(worker_id.clone(), props, tx, NOW_TIME);
     scheduler
         .add_worker(worker)
         .await
@@ -158,7 +157,7 @@ const WORKER_TIMEOUT_S: u64 = 100;
 
 #[nativelink_test]
 async fn basic_add_action_with_one_worker_test() -> Result<(), Error> {
-    let worker_id: WorkerId = WorkerId(Uuid::new_v4());
+    let worker_id = WorkerId("worker_id".to_string());
 
     let task_change_notify = Arc::new(Notify::new());
     let (scheduler, _worker_scheduler) = SimpleScheduler::new_with_callback(
@@ -176,7 +175,7 @@ async fn basic_add_action_with_one_worker_test() -> Result<(), Error> {
     let action_digest = DigestInfo::new([99u8; 32], 512);
 
     let mut rx_from_worker =
-        setup_new_worker(&scheduler, worker_id, PlatformProperties::default()).await?;
+        setup_new_worker(&scheduler, worker_id.clone(), PlatformProperties::default()).await?;
     let insert_timestamp = make_system_time(1);
     let mut action_listener =
         setup_action(&scheduler, action_digest, HashMap::new(), insert_timestamp)
@@ -196,7 +195,7 @@ async fn basic_add_action_with_one_worker_test() -> Result<(), Error> {
                 operation_id: "Unknown Generated internally".to_string(),
                 queued_timestamp: Some(insert_timestamp.into()),
                 platform: Some(Platform::default()),
-                worker_id: worker_id.to_string(),
+                worker_id: worker_id.into(),
             })),
         };
         let msg_for_worker = rx_from_worker.recv().await.unwrap();
@@ -229,7 +228,7 @@ async fn client_does_not_receive_update_timeout() -> Result<(), Error> {
         }
     }
 
-    let worker_id: WorkerId = WorkerId(Uuid::new_v4());
+    let worker_id = WorkerId("worker_id".to_string());
 
     let task_change_notify = Arc::new(Notify::new());
     let (scheduler, _worker_scheduler) = SimpleScheduler::new_with_callback(
@@ -250,7 +249,7 @@ async fn client_does_not_receive_update_timeout() -> Result<(), Error> {
     let action_digest = DigestInfo::new([99u8; 32], 512);
 
     let _rx_from_worker =
-        setup_new_worker(&scheduler, worker_id, PlatformProperties::default()).await?;
+        setup_new_worker(&scheduler, worker_id.clone(), PlatformProperties::default()).await?;
     let mut action_listener = setup_action(
         &scheduler,
         action_digest,
@@ -293,7 +292,7 @@ async fn client_does_not_receive_update_timeout() -> Result<(), Error> {
 
 #[nativelink_test]
 async fn find_executing_action() -> Result<(), Error> {
-    let worker_id: WorkerId = WorkerId(Uuid::new_v4());
+    let worker_id = WorkerId("worker_id".to_string());
 
     let task_change_notify = Arc::new(Notify::new());
     let (scheduler, _worker_scheduler) = SimpleScheduler::new_with_callback(
@@ -311,7 +310,7 @@ async fn find_executing_action() -> Result<(), Error> {
     let action_digest = DigestInfo::new([99u8; 32], 512);
 
     let mut rx_from_worker =
-        setup_new_worker(&scheduler, worker_id, PlatformProperties::default()).await?;
+        setup_new_worker(&scheduler, worker_id.clone(), PlatformProperties::default()).await?;
     let insert_timestamp = make_system_time(1);
     let action_listener = setup_action(&scheduler, action_digest, HashMap::new(), insert_timestamp)
         .await
@@ -350,7 +349,7 @@ async fn find_executing_action() -> Result<(), Error> {
                 operation_id: "Unknown Generated internally".to_string(),
                 queued_timestamp: Some(insert_timestamp.into()),
                 platform: Some(Platform::default()),
-                worker_id: worker_id.to_string(),
+                worker_id: worker_id.into(),
             })),
         };
         let msg_for_worker = rx_from_worker.recv().await.unwrap();
@@ -374,8 +373,8 @@ async fn find_executing_action() -> Result<(), Error> {
 
 #[nativelink_test]
 async fn remove_worker_reschedules_multiple_running_job_test() -> Result<(), Error> {
-    let worker_id1: WorkerId = WorkerId(Uuid::new_v4());
-    let worker_id2: WorkerId = WorkerId(Uuid::new_v4());
+    let worker_id1 = WorkerId("worker1".to_string());
+    let worker_id2 = WorkerId("worker2".to_string());
     let task_change_notify = Arc::new(Notify::new());
     let (scheduler, _worker_scheduler) = SimpleScheduler::new_with_callback(
         &SimpleSpec {
@@ -395,8 +394,12 @@ async fn remove_worker_reschedules_multiple_running_job_test() -> Result<(), Err
     let action_digest1 = DigestInfo::new([99u8; 32], 512);
     let action_digest2 = DigestInfo::new([88u8; 32], 512);
 
-    let mut rx_from_worker1 =
-        setup_new_worker(&scheduler, worker_id1, PlatformProperties::default()).await?;
+    let mut rx_from_worker1 = setup_new_worker(
+        &scheduler,
+        worker_id1.clone(),
+        PlatformProperties::default(),
+    )
+    .await?;
     let insert_timestamp1 = make_system_time(1);
     let mut client1_action_listener = setup_action(
         &scheduler,
@@ -479,8 +482,12 @@ async fn remove_worker_reschedules_multiple_running_job_test() -> Result<(), Err
     };
 
     // Add a second worker that can take jobs if the first dies.
-    let mut rx_from_worker2 =
-        setup_new_worker(&scheduler, worker_id2, PlatformProperties::default()).await?;
+    let mut rx_from_worker2 = setup_new_worker(
+        &scheduler,
+        worker_id2.clone(),
+        PlatformProperties::default(),
+    )
+    .await?;
 
     {
         let expected_action_stage = ActionStage::Executing;
@@ -563,7 +570,7 @@ async fn remove_worker_reschedules_multiple_running_job_test() -> Result<(), Err
 
 #[nativelink_test]
 async fn set_drain_worker_pauses_and_resumes_worker_test() -> Result<(), Error> {
-    let worker_id: WorkerId = WorkerId(Uuid::new_v4());
+    let worker_id = WorkerId("worker_id".to_string());
 
     let task_change_notify = Arc::new(Notify::new());
     let (scheduler, _worker_scheduler) = SimpleScheduler::new_with_callback(
@@ -581,7 +588,7 @@ async fn set_drain_worker_pauses_and_resumes_worker_test() -> Result<(), Error> 
     let action_digest = DigestInfo::new([99u8; 32], 512);
 
     let mut rx_from_worker =
-        setup_new_worker(&scheduler, worker_id, PlatformProperties::default()).await?;
+        setup_new_worker(&scheduler, worker_id.clone(), PlatformProperties::default()).await?;
     let insert_timestamp = make_system_time(1);
     let mut action_listener =
         setup_action(&scheduler, action_digest, HashMap::new(), insert_timestamp).await?;
@@ -644,8 +651,8 @@ async fn set_drain_worker_pauses_and_resumes_worker_test() -> Result<(), Error> 
 
 #[nativelink_test]
 async fn worker_should_not_queue_if_properties_dont_match_test() -> Result<(), Error> {
-    let worker_id1: WorkerId = WorkerId(Uuid::new_v4());
-    let worker_id2: WorkerId = WorkerId(Uuid::new_v4());
+    let worker_id1 = WorkerId("worker1".to_string());
+    let worker_id2 = WorkerId("worker2".to_string());
 
     let mut prop_defs = HashMap::new();
     prop_defs.insert("prop".to_string(), PropertyType::exact);
@@ -703,7 +710,7 @@ async fn worker_should_not_queue_if_properties_dont_match_test() -> Result<(), E
         PlatformPropertyValue::Exact("1".to_string()),
     );
     let mut rx_from_worker2 =
-        setup_new_worker(&scheduler, worker_id2, worker2_properties.clone()).await?;
+        setup_new_worker(&scheduler, worker_id2.clone(), worker2_properties.clone()).await?;
     {
         // Worker should have been sent an execute command.
         let expected_msg_for_worker = UpdateForWorker {
@@ -746,7 +753,7 @@ async fn worker_should_not_queue_if_properties_dont_match_test() -> Result<(), E
 
 #[nativelink_test]
 async fn cacheable_items_join_same_action_queued_test() -> Result<(), Error> {
-    let worker_id: WorkerId = WorkerId(Uuid::new_v4());
+    let worker_id = WorkerId("worker_id".to_string());
 
     let task_change_notify = Arc::new(Notify::new());
     let (scheduler, _worker_scheduler) = SimpleScheduler::new_with_callback(
@@ -799,7 +806,7 @@ async fn cacheable_items_join_same_action_queued_test() -> Result<(), Error> {
     };
 
     let mut rx_from_worker =
-        setup_new_worker(&scheduler, worker_id, PlatformProperties::default()).await?;
+        setup_new_worker(&scheduler, worker_id.clone(), PlatformProperties::default()).await?;
 
     {
         // Worker should have been sent an execute command.
@@ -814,7 +821,7 @@ async fn cacheable_items_join_same_action_queued_test() -> Result<(), Error> {
                 operation_id: "Unknown Generated internally".to_string(),
                 queued_timestamp: Some(insert_timestamp1.into()),
                 platform: Some(Platform::default()),
-                worker_id: worker_id.to_string(),
+                worker_id: worker_id.into(),
             })),
         };
         let msg_for_worker = rx_from_worker.recv().await.unwrap();
@@ -868,11 +875,11 @@ async fn worker_disconnects_does_not_schedule_for_execution_test() -> Result<(),
         MockInstantWrapped::default,
         None,
     );
-    let worker_id: WorkerId = WorkerId(Uuid::new_v4());
+    let worker_id = WorkerId("worker_id".to_string());
     let action_digest = DigestInfo::new([99u8; 32], 512);
 
     let rx_from_worker =
-        setup_new_worker(&scheduler, worker_id, PlatformProperties::default()).await?;
+        setup_new_worker(&scheduler, worker_id.clone(), PlatformProperties::default()).await?;
 
     // Now act like the worker disconnected.
     drop(rx_from_worker);
@@ -1028,7 +1035,7 @@ async fn matching_engine_fails_sends_abort() -> Result<(), Error> {
         senders.get_range_of_actions.send(vec![]).unwrap();
         let _worker_rx = setup_new_worker(
             &scheduler,
-            WorkerId(Uuid::new_v4()),
+            WorkerId("worker_id".to_string()),
             PlatformProperties::default(),
         )
         .await
@@ -1074,7 +1081,7 @@ async fn matching_engine_fails_sends_abort() -> Result<(), Error> {
         senders.get_range_of_actions.send(vec![]).unwrap();
         let _worker_rx = setup_new_worker(
             &scheduler,
-            WorkerId(Uuid::new_v4()),
+            WorkerId("worker_id".to_string()),
             PlatformProperties::default(),
         )
         .await
@@ -1111,8 +1118,8 @@ async fn matching_engine_fails_sends_abort() -> Result<(), Error> {
 
 #[nativelink_test]
 async fn worker_timesout_reschedules_running_job_test() -> Result<(), Error> {
-    let worker_id1: WorkerId = WorkerId(Uuid::new_v4());
-    let worker_id2: WorkerId = WorkerId(Uuid::new_v4());
+    let worker_id1 = WorkerId("worker1".to_string());
+    let worker_id2 = WorkerId("worker2".to_string());
     let task_change_notify = Arc::new(Notify::new());
     let (scheduler, _worker_scheduler) = SimpleScheduler::new_with_callback(
         &SimpleSpec {
@@ -1132,15 +1139,23 @@ async fn worker_timesout_reschedules_running_job_test() -> Result<(), Error> {
     let action_digest = DigestInfo::new([99u8; 32], 512);
 
     // Note: This needs to stay in scope or a disconnect will trigger.
-    let mut rx_from_worker1 =
-        setup_new_worker(&scheduler, worker_id1, PlatformProperties::default()).await?;
+    let mut rx_from_worker1 = setup_new_worker(
+        &scheduler,
+        worker_id1.clone(),
+        PlatformProperties::default(),
+    )
+    .await?;
     let insert_timestamp = make_system_time(1);
     let mut action_listener =
         setup_action(&scheduler, action_digest, HashMap::new(), insert_timestamp).await?;
 
     // Note: This needs to stay in scope or a disconnect will trigger.
-    let mut rx_from_worker2 =
-        setup_new_worker(&scheduler, worker_id2, PlatformProperties::default()).await?;
+    let mut rx_from_worker2 = setup_new_worker(
+        &scheduler,
+        worker_id2.clone(),
+        PlatformProperties::default(),
+    )
+    .await?;
 
     let mut start_execute = StartExecute {
         execute_request: Some(ExecuteRequest {
@@ -1238,7 +1253,7 @@ async fn worker_timesout_reschedules_running_job_test() -> Result<(), Error> {
 
 #[nativelink_test]
 async fn update_action_sends_completed_result_to_client_test() -> Result<(), Error> {
-    let worker_id: WorkerId = WorkerId(Uuid::new_v4());
+    let worker_id = WorkerId("worker_id".to_string());
 
     let task_change_notify = Arc::new(Notify::new());
     let (scheduler, _worker_scheduler) = SimpleScheduler::new_with_callback(
@@ -1256,7 +1271,7 @@ async fn update_action_sends_completed_result_to_client_test() -> Result<(), Err
     let action_digest = DigestInfo::new([99u8; 32], 512);
 
     let mut rx_from_worker =
-        setup_new_worker(&scheduler, worker_id, PlatformProperties::default()).await?;
+        setup_new_worker(&scheduler, worker_id.clone(), PlatformProperties::default()).await?;
     let insert_timestamp = make_system_time(1);
     let mut action_listener =
         setup_action(&scheduler, action_digest, HashMap::new(), insert_timestamp).await?;
@@ -1340,7 +1355,7 @@ async fn update_action_sends_completed_result_to_client_test() -> Result<(), Err
 
 #[nativelink_test]
 async fn update_action_sends_completed_result_after_disconnect() -> Result<(), Error> {
-    let worker_id: WorkerId = WorkerId(Uuid::new_v4());
+    let worker_id = WorkerId("worker_id".to_string());
 
     let task_change_notify = Arc::new(Notify::new());
     let (scheduler, _worker_scheduler) = SimpleScheduler::new_with_callback(
@@ -1358,7 +1373,7 @@ async fn update_action_sends_completed_result_after_disconnect() -> Result<(), E
     let action_digest = DigestInfo::new([99u8; 32], 512);
 
     let mut rx_from_worker =
-        setup_new_worker(&scheduler, worker_id, PlatformProperties::default()).await?;
+        setup_new_worker(&scheduler, worker_id.clone(), PlatformProperties::default()).await?;
     let insert_timestamp = make_system_time(1);
     let action_listener =
         setup_action(&scheduler, action_digest, HashMap::new(), insert_timestamp).await?;
@@ -1459,8 +1474,8 @@ async fn update_action_sends_completed_result_after_disconnect() -> Result<(), E
 
 #[nativelink_test]
 async fn update_action_with_wrong_worker_id_errors_test() -> Result<(), Error> {
-    let good_worker_id: WorkerId = WorkerId(Uuid::new_v4());
-    let rogue_worker_id: WorkerId = WorkerId(Uuid::new_v4());
+    let good_worker_id = WorkerId("good_worker_id".to_string());
+    let rogue_worker_id = WorkerId("rogue_worker_id".to_string());
 
     let task_change_notify = Arc::new(Notify::new());
     let (scheduler, _worker_scheduler) = SimpleScheduler::new_with_callback(
@@ -1477,8 +1492,12 @@ async fn update_action_with_wrong_worker_id_errors_test() -> Result<(), Error> {
     );
     let action_digest = DigestInfo::new([99u8; 32], 512);
 
-    let mut rx_from_worker =
-        setup_new_worker(&scheduler, good_worker_id, PlatformProperties::default()).await?;
+    let mut rx_from_worker = setup_new_worker(
+        &scheduler,
+        good_worker_id.clone(),
+        PlatformProperties::default(),
+    )
+    .await?;
     let insert_timestamp = make_system_time(1);
     let mut action_listener =
         setup_action(&scheduler, action_digest, HashMap::new(), insert_timestamp).await?;
@@ -1495,7 +1514,12 @@ async fn update_action_with_wrong_worker_id_errors_test() -> Result<(), Error> {
             ActionStage::Executing
         );
     }
-    let _ = setup_new_worker(&scheduler, rogue_worker_id, PlatformProperties::default()).await?;
+    let _ = setup_new_worker(
+        &scheduler,
+        rogue_worker_id.clone(),
+        PlatformProperties::default(),
+    )
+    .await?;
 
     let action_result = ActionResult {
         output_files: Vec::default(),
@@ -1559,7 +1583,7 @@ async fn update_action_with_wrong_worker_id_errors_test() -> Result<(), Error> {
 
 #[nativelink_test]
 async fn does_not_crash_if_operation_joined_then_relaunched() -> Result<(), Error> {
-    let worker_id: WorkerId = WorkerId(Uuid::new_v4());
+    let worker_id = WorkerId("worker_id".to_string());
 
     let task_change_notify = Arc::new(Notify::new());
     let (scheduler, _worker_scheduler) = SimpleScheduler::new_with_callback(
@@ -1588,9 +1612,10 @@ async fn does_not_crash_if_operation_joined_then_relaunched() -> Result<(), Erro
         setup_action(&scheduler, action_digest, HashMap::new(), insert_timestamp)
             .await
             .unwrap();
-    let mut rx_from_worker = setup_new_worker(&scheduler, worker_id, PlatformProperties::default())
-        .await
-        .unwrap();
+    let mut rx_from_worker =
+        setup_new_worker(&scheduler, worker_id.clone(), PlatformProperties::default())
+            .await
+            .unwrap();
 
     let operation_id = {
         // Worker should have been sent an execute command.
@@ -1605,7 +1630,7 @@ async fn does_not_crash_if_operation_joined_then_relaunched() -> Result<(), Erro
                 operation_id: "Unknown Generated internally".to_string(),
                 queued_timestamp: Some(insert_timestamp.into()),
                 platform: Some(Platform::default()),
-                worker_id: worker_id.to_string(),
+                worker_id: worker_id.clone().into(),
             })),
         };
         let msg_for_worker = rx_from_worker.recv().await.unwrap();
@@ -1700,7 +1725,7 @@ async fn does_not_crash_if_operation_joined_then_relaunched() -> Result<(), Erro
 /// a job finished on a specific worker (eg: restore platform properties).
 #[nativelink_test]
 async fn run_two_jobs_on_same_worker_with_platform_properties_restrictions() -> Result<(), Error> {
-    let worker_id: WorkerId = WorkerId(Uuid::new_v4());
+    let worker_id = WorkerId("worker_id".to_string());
 
     let mut supported_props = HashMap::new();
     supported_props.insert("prop1".to_string(), PropertyType::minimum);
@@ -1732,9 +1757,10 @@ async fn run_two_jobs_on_same_worker_with_platform_properties_restrictions() -> 
         .iter()
         .map(|(k, v)| (k.clone(), v.as_str().into_owned()))
         .collect();
-    let mut rx_from_worker = setup_new_worker(&scheduler, worker_id, platform_properties.clone())
-        .await
-        .unwrap();
+    let mut rx_from_worker =
+        setup_new_worker(&scheduler, worker_id.clone(), platform_properties.clone())
+            .await
+            .unwrap();
     let insert_timestamp1 = make_system_time(1);
     let mut client1_action_listener = setup_action(
         &scheduler,
@@ -1865,7 +1891,7 @@ async fn run_two_jobs_on_same_worker_with_platform_properties_restrictions() -> 
 /// This tests that actions are performed in the order they were queued.
 #[nativelink_test]
 async fn run_jobs_in_the_order_they_were_queued() -> Result<(), Error> {
-    let worker_id: WorkerId = WorkerId(Uuid::new_v4());
+    let worker_id = WorkerId("worker_id".to_string());
 
     let mut supported_props = HashMap::new();
     supported_props.insert("prop1".to_string(), PropertyType::minimum);
@@ -1935,7 +1961,7 @@ async fn run_jobs_in_the_order_they_were_queued() -> Result<(), Error> {
 
 #[nativelink_test]
 async fn worker_retries_on_internal_error_and_fails_test() -> Result<(), Error> {
-    let worker_id: WorkerId = WorkerId(Uuid::new_v4());
+    let worker_id = WorkerId("worker_id".to_string());
 
     let task_change_notify = Arc::new(Notify::new());
     let (scheduler, _worker_scheduler) = SimpleScheduler::new_with_callback(
@@ -1956,7 +1982,7 @@ async fn worker_retries_on_internal_error_and_fails_test() -> Result<(), Error> 
     let action_digest = DigestInfo::new([99u8; 32], 512);
 
     let mut rx_from_worker =
-        setup_new_worker(&scheduler, worker_id, PlatformProperties::default()).await?;
+        setup_new_worker(&scheduler, worker_id.clone(), PlatformProperties::default()).await?;
     let insert_timestamp = make_system_time(1);
     let mut action_listener =
         setup_action(&scheduler, action_digest, HashMap::new(), insert_timestamp).await?;
@@ -1997,7 +2023,7 @@ async fn worker_retries_on_internal_error_and_fails_test() -> Result<(), Error> 
 
     // Now connect a new worker and it should pickup the action.
     let mut rx_from_worker =
-        setup_new_worker(&scheduler, worker_id, PlatformProperties::default()).await?;
+        setup_new_worker(&scheduler, worker_id.clone(), PlatformProperties::default()).await?;
     {
         // Other tests check full data. We only care if we got StartAction.
         match rx_from_worker.recv().await.unwrap().update {
@@ -2121,8 +2147,8 @@ async fn ensure_scheduler_drops_inner_spawn() -> Result<(), Error> {
 /// Regression test for: https://github.com/TraceMachina/nativelink/issues/257.
 #[nativelink_test]
 async fn ensure_task_or_worker_change_notification_received_test() -> Result<(), Error> {
-    let worker_id1: WorkerId = WorkerId(Uuid::new_v4());
-    let worker_id2: WorkerId = WorkerId(Uuid::new_v4());
+    let worker_id1 = WorkerId("worker1".to_string());
+    let worker_id2 = WorkerId("worker2".to_string());
 
     let task_change_notify = Arc::new(Notify::new());
     let (scheduler, _worker_scheduler) = SimpleScheduler::new_with_callback(
@@ -2139,8 +2165,12 @@ async fn ensure_task_or_worker_change_notification_received_test() -> Result<(),
     );
     let action_digest = DigestInfo::new([99u8; 32], 512);
 
-    let mut rx_from_worker1 =
-        setup_new_worker(&scheduler, worker_id1, PlatformProperties::default()).await?;
+    let mut rx_from_worker1 = setup_new_worker(
+        &scheduler,
+        worker_id1.clone(),
+        PlatformProperties::default(),
+    )
+    .await?;
     let mut action_listener = setup_action(
         &scheduler,
         action_digest,
@@ -2149,8 +2179,12 @@ async fn ensure_task_or_worker_change_notification_received_test() -> Result<(),
     )
     .await?;
 
-    let mut rx_from_worker2 =
-        setup_new_worker(&scheduler, worker_id2, PlatformProperties::default()).await?;
+    let mut rx_from_worker2 = setup_new_worker(
+        &scheduler,
+        worker_id2.clone(),
+        PlatformProperties::default(),
+    )
+    .await?;
 
     let operation_id = {
         // Other tests check full data. We only care if we got StartAction.

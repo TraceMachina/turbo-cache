@@ -21,7 +21,7 @@ use hyper::body::Frame;
 use nativelink_config::cas_server::{EndpointConfig, LocalWorkerConfig, WorkerProperty};
 use nativelink_error::Error;
 use nativelink_proto::com::github::trace_machina::nativelink::remote_execution::{
-    ExecuteResult, GoingAwayRequest, KeepAliveRequest, SupportedProperties, UpdateForWorker,
+    ConnectWorkerRequest, ExecuteResult, GoingAwayRequest, KeepAliveRequest, UpdateForWorker,
 };
 use nativelink_util::channel_body_for_tests::ChannelBody;
 use nativelink_util::shutdown_guard::ShutdownGuard;
@@ -47,7 +47,7 @@ const BROADCAST_CAPACITY: usize = 1;
 
 #[derive(Debug)]
 enum WorkerClientApiCalls {
-    ConnectWorker(SupportedProperties),
+    ConnectWorker(ConnectWorkerRequest),
     ExecutionResponse(ExecuteResult),
 }
 
@@ -88,7 +88,7 @@ impl MockWorkerApiClient {
     pub async fn expect_connect_worker(
         &mut self,
         result: Result<Response<Streaming<UpdateForWorker>>, Status>,
-    ) -> SupportedProperties {
+    ) -> ConnectWorkerRequest {
         let mut rx_call_lock = self.rx_call.lock().await;
         let req = match rx_call_lock
             .recv()
@@ -131,7 +131,7 @@ impl MockWorkerApiClient {
 impl WorkerApiClientTrait for MockWorkerApiClient {
     async fn connect_worker(
         &mut self,
-        request: SupportedProperties,
+        request: ConnectWorkerRequest,
     ) -> Result<Response<Streaming<UpdateForWorker>>, Status> {
         self.tx_call
             .send(WorkerClientApiCalls::ConnectWorker(request))

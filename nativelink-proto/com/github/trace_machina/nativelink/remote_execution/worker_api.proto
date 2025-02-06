@@ -33,7 +33,7 @@ service WorkerApi {
     /// this worker supports. The response must be listened on the client
     /// side for updates from the server. The first item sent will always be
     /// a ConnectionResult, after that it is undefined.
-    rpc ConnectWorker(SupportedProperties) returns (stream UpdateForWorker);
+    rpc ConnectWorker(ConnectWorkerRequest) returns (stream UpdateForWorker);
 
     /// Message used to let the scheduler know that it is still alive as
     /// well as check to see if the scheduler is still alive. The scheduler
@@ -74,8 +74,8 @@ message GoingAwayRequest {
 }
 
 /// Represents the initial request sent to the scheduler informing the
-/// scheduler about this worker's capabilities.
-message SupportedProperties {
+/// scheduler about this worker's capabilities and metadata.
+message ConnectWorkerRequest {
     /// The list of properties this worker can support. The exact
     /// implementation is driven by the configuration matrix between the
     /// worker and scheduler.
@@ -87,7 +87,13 @@ message SupportedProperties {
     /// The details on how to use this property can be found here:
     /// https://github.com/TraceMachina/nativelink/blob/3147265047544572e3483c985e4aab0f9fdded38/nativelink-config/src/cas_server.rs
     repeated build.bazel.remote.execution.v2.Platform.Property properties = 1;
-    reserved 2; // NextId.
+
+    /// Prefix to use for worker IDs. This is primarily used for debugging
+    /// or for other systems to identify workers. The scheduler will always
+    /// append this prefix to the assigned worker_id followed by a UUIDv6.
+    string worker_id_prefix = 2;
+
+    reserved 3; // NextId.
 }
 
 /// The result of an ExecutionRequest.

@@ -160,7 +160,7 @@ impl Worker {
         send_msg_to_worker(
             &mut self.tx,
             update_for_worker::Update::ConnectionResult(ConnectionResult {
-                worker_id: self.id.to_string(),
+                worker_id: self.id.clone().into(),
             }),
         )
         .err_tip(|| format!("Failed to send ConnectionResult to worker : {}", self.id))
@@ -181,7 +181,7 @@ impl Worker {
 
     pub fn keep_alive(&mut self) -> Result<(), Error> {
         let tx = &mut self.tx;
-        let id = self.id;
+        let id = &self.id;
         self.metrics.keep_alive.wrap(move || {
             send_msg_to_worker(tx, update_for_worker::Update::KeepAlive(()))
                 .err_tip(|| format!("Failed to send KeepAlive to worker : {id}"))
@@ -196,7 +196,7 @@ impl Worker {
         let tx = &mut self.tx;
         let worker_platform_properties = &mut self.platform_properties;
         let running_action_infos = &mut self.running_action_infos;
-        let worker_id = self.id.to_string();
+        let worker_id = self.id.clone().into();
         self.metrics
             .run_action
             .wrap(async move {

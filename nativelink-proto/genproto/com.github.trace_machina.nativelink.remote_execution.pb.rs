@@ -28,9 +28,9 @@ pub struct GoingAwayRequest {
     pub worker_id: ::prost::alloc::string::String,
 }
 /// / Represents the initial request sent to the scheduler informing the
-/// / scheduler about this worker's capabilities.
+/// / scheduler about this worker's capabilities and metadata.
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct SupportedProperties {
+pub struct ConnectWorkerRequest {
     /// / The list of properties this worker can support. The exact
     /// / implementation is driven by the configuration matrix between the
     /// / worker and scheduler.
@@ -45,6 +45,11 @@ pub struct SupportedProperties {
     pub properties: ::prost::alloc::vec::Vec<
         super::super::super::super::super::build::bazel::remote::execution::v2::platform::Property,
     >,
+    /// / Prefix to use for worker IDs. This is primarily used for debugging
+    /// / or for other systems to identify workers. The scheduler will always
+    /// / append this prefix to the assigned worker_id followed by a UUIDv6.
+    #[prost(string, tag = "2")]
+    pub worker_id_prefix: ::prost::alloc::string::String,
 }
 /// / The result of an ExecutionRequest.
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -261,7 +266,7 @@ pub mod worker_api_client {
         /// / a ConnectionResult, after that it is undefined.
         pub async fn connect_worker(
             &mut self,
-            request: impl tonic::IntoRequest<super::SupportedProperties>,
+            request: impl tonic::IntoRequest<super::ConnectWorkerRequest>,
         ) -> std::result::Result<
             tonic::Response<tonic::codec::Streaming<super::UpdateForWorker>>,
             tonic::Status,
@@ -410,7 +415,7 @@ pub mod worker_api_server {
         /// / a ConnectionResult, after that it is undefined.
         async fn connect_worker(
             &self,
-            request: tonic::Request<super::SupportedProperties>,
+            request: tonic::Request<super::ConnectWorkerRequest>,
         ) -> std::result::Result<
             tonic::Response<Self::ConnectWorkerStream>,
             tonic::Status,
@@ -533,7 +538,7 @@ pub mod worker_api_server {
                     struct ConnectWorkerSvc<T: WorkerApi>(pub Arc<T>);
                     impl<
                         T: WorkerApi,
-                    > tonic::server::ServerStreamingService<super::SupportedProperties>
+                    > tonic::server::ServerStreamingService<super::ConnectWorkerRequest>
                     for ConnectWorkerSvc<T> {
                         type Response = super::UpdateForWorker;
                         type ResponseStream = T::ConnectWorkerStream;
@@ -543,7 +548,7 @@ pub mod worker_api_server {
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::SupportedProperties>,
+                            request: tonic::Request<super::ConnectWorkerRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {

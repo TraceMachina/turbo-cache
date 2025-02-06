@@ -2147,6 +2147,7 @@ dependencies = [
  "pretty_assertions",
  "prost",
  "prost-types",
+ "rand",
  "serde_json5",
  "tokio",
  "tokio-stream",

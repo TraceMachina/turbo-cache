@@ -38,8 +38,8 @@ use nativelink_proto::build::bazel::remote::execution::v2::platform::Property;
 use nativelink_proto::build::bazel::remote::execution::v2::Platform;
 use nativelink_proto::com::github::trace_machina::nativelink::remote_execution::update_for_worker::Update;
 use nativelink_proto::com::github::trace_machina::nativelink::remote_execution::{
-    execute_result, ConnectionResult, ExecuteResult, KillOperationRequest, StartExecute,
-    SupportedProperties, UpdateForWorker,
+    execute_result, ConnectWorkerRequest, ConnectionResult, ExecuteResult, KillOperationRequest,
+    StartExecute, UpdateForWorker,
 };
 use nativelink_store::fast_slow_store::FastSlowStore;
 use nativelink_store::filesystem_store::FilesystemStore;
@@ -95,17 +95,18 @@ async fn platform_properties_smoke_test() -> Result<(), Error> {
     let streaming_response = test_context.maybe_streaming_response.take().unwrap();
 
     // Now wait for our client to send `.connect_worker()` (which has our platform properties).
-    let mut supported_properties = test_context
+    let mut connect_worker_request = test_context
         .client
         .expect_connect_worker(Ok(streaming_response))
         .await;
     // It is undefined which order these will be returned in, so we sort it.
-    supported_properties
+    connect_worker_request
         .properties
         .sort_by_key(Message::encode_to_vec);
     assert_eq!(
-        supported_properties,
-        SupportedProperties {
+        connect_worker_request,
+        ConnectWorkerRequest {
+            worker_id_prefix: String::new(),
             properties: vec![
                 Property {
                     name: "baz".to_string(),
@@ -141,7 +142,7 @@ async fn reconnect_on_server_disconnect_test() -> Result<(), Box<dyn std::error:
             .client
             .expect_connect_worker(Ok(streaming_response))
             .await;
-        assert_eq!(props, SupportedProperties::default());
+        assert_eq!(props, ConnectWorkerRequest::default());
     }
 
     // Disconnect our grpc stream.
@@ -154,7 +155,7 @@ async fn reconnect_on_server_disconnect_test() -> Result<(), Box<dyn std::error:
             .client
             .expect_connect_worker(Ok(streaming_response))
             .await;
-        assert_eq!(props, SupportedProperties::default());
+        assert_eq!(props, ConnectWorkerRequest::default());
     }
 
     Ok(())
@@ -171,7 +172,7 @@ async fn kill_all_called_on_disconnect() -> Result<(), Box<dyn std::error::Error
             .client
             .expect_connect_worker(Ok(streaming_response))
             .await;
-        assert_eq!(props, SupportedProperties::default());
+        assert_eq!(props, ConnectWorkerRequest::default());
     }
 
     // Handle registration (kill_all not called unless registered).
@@ -207,7 +208,7 @@ async fn blake3_digest_function_registerd_properly() -> Result<(), Box<dyn std::
             .client
             .expect_connect_worker(Ok(streaming_response))
             .await;
-        assert_eq!(props, SupportedProperties::default());
+        assert_eq!(props, ConnectWorkerRequest::default());
     }
 
     let expected_worker_id = "foobar".to_string();
@@ -291,7 +292,7 @@ async fn simple_worker_start_action_test() -> Result<(), Box<dyn std::error::Err
             .client
             .expect_connect_worker(Ok(streaming_response))
             .await;
-        assert_eq!(props, SupportedProperties::default());
+        assert_eq!(props, ConnectWorkerRequest::default());
     }
 
     let expected_worker_id = "foobar".to_string();
@@ -544,7 +545,7 @@ async fn experimental_precondition_script_fails() -> Result<(), Box<dyn std::err
             .client
             .expect_connect_worker(Ok(streaming_response))
             .await;
-        assert_eq!(props, SupportedProperties::default());
+        assert_eq!(props, ConnectWorkerRequest::default());
     }
 
     let expected_worker_id = "foobar".to_string();
@@ -628,7 +629,7 @@ async fn kill_action_request_kills_action() -> Result<(), Box<dyn std::error::Er
             .client
             .expect_connect_worker(Ok(streaming_response))
             .await;
-        assert_eq!(props, SupportedProperties::default());
+        assert_eq!(props, ConnectWorkerRequest::default());
     }
 
     let expected_worker_id = "foobar".to_string();

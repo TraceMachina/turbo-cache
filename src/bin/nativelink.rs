@@ -48,7 +48,6 @@ use nativelink_service::health_server::HealthServer;
 use nativelink_service::worker_api_server::WorkerApiServer;
 use nativelink_store::default_store_factory::store_factory;
 use nativelink_store::store_manager::StoreManager;
-use nativelink_util::action_messages::WorkerId;
 use nativelink_util::common::fs::{set_idle_file_descriptor_timeout, set_open_file_limit};
 use nativelink_util::digest_hasher::{set_default_digest_hasher_func, DigestHasherFunc};
 use nativelink_util::health_utils::HealthRegistryBuilder;
@@ -663,10 +662,7 @@ async fn inner_main(
                                         )
                                     })?
                                     .clone()
-                                    .set_drain_worker(
-                                        &WorkerId::try_from(worker_id.clone())?,
-                                        is_draining,
-                                    )
+                                    .set_drain_worker(&worker_id.clone().into(), is_draining)
                                     .await?;
                                 Ok::<_, Error>(format!("Draining worker {worker_id}"))
                             })

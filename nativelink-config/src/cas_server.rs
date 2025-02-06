@@ -605,7 +605,8 @@ pub struct UploadActionResultConfig {
 #[serde(deny_unknown_fields)]
 pub struct LocalWorkerConfig {
     /// Name of the worker. This is give a more friendly name to a worker for logging
-    /// and metric publishing.
+    /// and metric publishing. This is also the prefix of the worker id
+    /// (ie: "{name}{uuidv6}").
     /// Default: {Index position in the workers list}
     #[serde(default, deserialize_with = "convert_string_with_shellexpand")]
     pub name: String,

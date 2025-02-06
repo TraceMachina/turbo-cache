@@ -156,8 +156,8 @@ impl AwaitedAction {
         self.maybe_origin_metadata.as_ref()
     }
 
-    pub(crate) fn worker_id(&self) -> Option<WorkerId> {
-        self.worker_id
+    pub(crate) fn worker_id(&self) -> Option<&WorkerId> {
+        self.worker_id.as_ref()
     }
 
     pub(crate) fn last_worker_updated_timestamp(&self) -> SystemTime {

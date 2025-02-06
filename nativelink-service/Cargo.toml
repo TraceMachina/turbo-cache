@@ -16,6 +16,7 @@ futures = { version = "0.3.31", default-features = false }
 http-body = "1.0.1"
 http-body-util = "0.1.2"
 hyper = { version = "1.5.2" }
+rand = { version = "0.8.5", default-features = false }
 serde_json5 = "0.1.0"
 parking_lot = "0.12.3"
 prost = { version = "0.13.4", default-features = false }

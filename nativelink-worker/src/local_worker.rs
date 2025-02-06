@@ -51,7 +51,7 @@ use crate::running_actions_manager::{
     RunningActionsManager, RunningActionsManagerArgs, RunningActionsManagerImpl,
 };
 use crate::worker_api_client_wrapper::{WorkerApiClientTrait, WorkerApiClientWrapper};
-use crate::worker_utils::make_supported_properties;
+use crate::worker_utils::make_connect_worker_request;
 
 /// Amount of time to wait if we have actions in transit before we try to
 /// consider an error to have occurred.
@@ -499,10 +499,11 @@ impl<T: WorkerApiClientTrait, U: RunningActionsManager> LocalWorker<T, U> {
         &self,
         client: &mut T,
     ) -> Result<(String, Streaming<UpdateForWorker>), Error> {
-        let supported_properties =
-            make_supported_properties(&self.config.platform_properties).await?;
+        let connect_worker_request =
+            make_connect_worker_request(self.config.name.clone(), &self.config.platform_properties)
+                .await?;
         let mut update_for_worker_stream = client
-            .connect_worker(supported_properties)
+            .connect_worker(connect_worker_request)
             .await
             .err_tip(|| "Could not call connect_worker() in worker")?
             .into_inner();
