@@ -430,6 +430,26 @@ pub enum StoreSpec {
     /// ```
     ///
     noop(NoopSpec),
+
+    /// GCS store will use Google Cloud Storage (GCS) as a backend to store
+    /// the files. This configuration can be used to share files
+    /// across multiple instances.
+    ///
+    /// **Example JSON Config:**
+    /// ```json
+    /// "gcs_store": {
+    ///   "bucket": "crossplane-bucket-af79aeca9",
+    ///   "key_prefix": "test-prefix-index/",
+    ///   "retry": {
+    ///     "max_retries": 6,
+    ///     "delay": 0.3,
+    ///     "jitter": 0.5
+    ///   },
+    ///   "multipart_max_concurrent_uploads": 10
+    /// }
+    /// ```
+    ///
+    gcs_store(GcsSpec),
 }
 
 /// Configuration for an individual shard of the store.
@@ -1062,4 +1082,31 @@ pub struct Retry {
     ///  - `DataLoss`
     #[serde(default)]
     pub retry_on_errors: Option<Vec<ErrorCode>>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct GcsSpec {
+    /// The name of the GCS bucket.
+    pub bucket: String,
+
+    /// Optional prefix to prepend to all keys in the bucket.
+    pub key_prefix: Option<String>,
+
+    /// If set, objects older than this many seconds will be considered expired
+    /// and will be treated as if they don't exist.
+    #[serde(default)]
+    pub consider_expired_after_s: u32,
+
+    /// Configuration for retrying failed operations.
+    #[serde(default)]
+    pub retry: Retry,
+
+    /// Maximum number of bytes to buffer for retrying requests.
+    /// Defaults to 5MB if not specified.
+    pub max_retry_buffer_per_request: Option<usize>,
+
+    /// Maximum number of concurrent uploads for multipart operations.
+    /// Defaults to 10 if not specified.
+    pub multipart_max_concurrent_uploads: Option<usize>,
 }
