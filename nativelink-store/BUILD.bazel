@@ -18,6 +18,7 @@ rust_library(
         "src/existence_cache_store.rs",
         "src/fast_slow_store.rs",
         "src/filesystem_store.rs",
+        "src/gcs_store.rs",
         "src/grpc_store.rs",
         "src/lib.rs",
         "src/memory_store.rs",
