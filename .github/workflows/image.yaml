@@ -23,7 +23,7 @@ jobs:
       matrix:
         image: [image, nativelink-worker-init, nativelink-worker-lre-cc]
     name: Publish ${{ matrix.image }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     permissions:
       packages: write
       id-token: write
