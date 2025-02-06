@@ -3,7 +3,7 @@ resolver = "2"
 
 [package]
 name = "nativelink"
-version = "0.5.4"
+version = "0.5.3"
 edition = "2021"
 rust-version = "1.84.0"
 
